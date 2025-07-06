@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Plus, Users, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Plus, Users, ChevronRight, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ClassSchedule: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'calendar'
 
   // Mock class data
   const classes = [
@@ -45,14 +46,14 @@ const ClassSchedule: React.FC = () => {
 
   const ClassCard = ({ classItem, index }: any) => (
     <div 
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200 mx-3"
       style={{ animationDelay: `${index * 100}ms` }}
     >
       <div className="flex items-start justify-between">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-2">
-            <h3 className="font-semibold text-gray-900 text-lg">{classItem.batchName}</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            <h3 className="font-semibold text-gray-900 text-base truncate">{classItem.batchName}</h3>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
               classItem.status === 'upcoming' 
                 ? 'bg-blue-100 text-blue-800' 
                 : 'bg-green-100 text-green-800'
@@ -63,29 +64,29 @@ const ClassSchedule: React.FC = () => {
           
           <div className="space-y-1 text-sm text-gray-600">
             <div className="flex items-center space-x-2">
-              <Clock size={14} className="text-[#0052cc]" />
-              <span>{classItem.time} • {classItem.duration}</span>
+              <Clock size={14} className="text-[#0052cc] flex-shrink-0" />
+              <span className="truncate">{classItem.time} • {classItem.duration}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <MapPin size={14} className="text-[#0052cc]" />
-              <span>{classItem.location}</span>
+              <MapPin size={14} className="text-[#0052cc] flex-shrink-0" />
+              <span className="truncate">{classItem.location}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <Users size={14} className="text-[#0052cc]" />
+              <Users size={14} className="text-[#0052cc] flex-shrink-0" />
               <span>{classItem.students} students</span>
             </div>
           </div>
         </div>
         
-        <ChevronRight size={20} className="text-gray-400 mt-1" />
+        <ChevronRight size={20} className="text-gray-400 mt-1 flex-shrink-0" />
       </div>
       
       <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-100">
-        <Button size="sm" variant="outline" className="text-xs flex-1">
+        <Button size="sm" variant="outline" className="text-xs flex-1 h-8">
           View Details
         </Button>
         {classItem.status === 'upcoming' && (
-          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs flex-1">
+          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs flex-1 h-8">
             Start Class
           </Button>
         )}
@@ -100,10 +101,35 @@ const ClassSchedule: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Schedule</h1>
-            <p className="text-gray-600">Manage your classes and batches</p>
+            <p className="text-gray-600 text-sm">Manage your classes and batches</p>
           </div>
-          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px]">
+          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px] p-0 flex items-center justify-center">
             <Plus size={20} />
+          </Button>
+        </div>
+
+        {/* View Toggle and Filter */}
+        <div className="flex items-center justify-between">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <Button
+              size="sm"
+              variant={viewMode === 'daily' ? 'default' : 'ghost'}
+              onClick={() => setViewMode('daily')}
+              className="h-8 px-3 text-xs"
+            >
+              Daily
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              onClick={() => setViewMode('calendar')}
+              className="h-8 px-3 text-xs"
+            >
+              Calendar
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" className="min-w-[48px] min-h-[48px] px-3">
+            <Filter size={16} />
           </Button>
         </div>
       </div>
@@ -139,13 +165,13 @@ const ClassSchedule: React.FC = () => {
       </div>
 
       {/* Class List */}
-      <div className="px-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-1">
+        <div className="flex items-center justify-between px-3 mb-4">
           <div className="flex items-center space-x-2">
             <Clock size={18} className="text-[#0052cc]" />
             <h2 className="font-semibold text-gray-900">Today's Classes</h2>
           </div>
-          <Button variant="ghost" size="sm" className="text-[#0052cc]">
+          <Button variant="ghost" size="sm" className="text-[#0052cc] h-8 px-3 text-xs">
             View All
           </Button>
         </div>
@@ -155,7 +181,7 @@ const ClassSchedule: React.FC = () => {
         ))}
         
         {todayClasses.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-4">
             <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-500 mb-2">No classes today</h3>
             <p className="text-gray-400 mb-4">Take a well-deserved break!</p>
@@ -165,6 +191,11 @@ const ClassSchedule: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Floating Add Button */}
+      <Button className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-[#0052cc] hover:bg-blue-700 shadow-lg z-10">
+        <Plus size={24} />
+      </Button>
     </div>
   );
 };

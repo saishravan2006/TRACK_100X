@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
-import { Upload, Download, DollarSign, FileSpreadsheet, Plus, TrendingUp } from 'lucide-react';
+import { Upload, Download, DollarSign, FileSpreadsheet, Plus, TrendingUp, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 const PaymentManager: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Mock payment data
   const payments = [
@@ -80,26 +81,34 @@ const PaymentManager: React.FC = () => {
 
   const PaymentCard = ({ payment, index }: any) => (
     <div 
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200 mx-3"
       style={{ animationDelay: `${index * 100}ms` }}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 text-lg">{payment.studentName}</h3>
-          <p className="text-sm text-gray-600 mb-1">{payment.batch}</p>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-900 text-base truncate">{payment.studentName}</h3>
+          <p className="text-sm text-gray-600 mb-1 truncate">{payment.batch}</p>
           <div className="flex items-center space-x-2 text-xs text-gray-500">
             <span>{payment.date}</span>
             <span>•</span>
-            <span>{payment.method}</span>
+            <span className="truncate">{payment.method}</span>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xl font-bold text-gray-900">${payment.amount}</div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
+        <div className="text-right ml-2">
+          <div className="text-lg font-bold text-gray-900">${payment.amount}</div>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(payment.status)}`}>
             {payment.status}
           </span>
         </div>
       </div>
+      
+      {payment.status === 'Pending' && (
+        <div className="pt-3 border-t border-gray-100">
+          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8 w-full">
+            Send Reminder
+          </Button>
+        </div>
+      )}
     </div>
   );
 
@@ -110,11 +119,25 @@ const PaymentManager: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Payments</h1>
-            <p className="text-gray-600">Track and manage student payments</p>
+            <p className="text-gray-600 text-sm">Track and manage student payments</p>
           </div>
-          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px]">
-            <Plus size={20} />
+          <Button 
+            className="bg-red-600 hover:bg-red-700 min-w-[48px] min-h-[48px] px-3 text-xs"
+            variant="destructive"
+          >
+            Reset Month
           </Button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search students or batches..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-10"
+          />
         </div>
       </div>
 
@@ -132,83 +155,74 @@ const PaymentManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Excel Upload Section */}
+      {/* Three Cards Side by Side */}
       <div className="px-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center space-x-2 mb-4">
-            <FileSpreadsheet size={20} className="text-[#0052cc]" />
-            <h2 className="font-semibold text-gray-900">Excel Upload</h2>
-          </div>
-          
-          <div
-            className={`border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 ${
-              dragOver 
-                ? 'border-[#0052cc] bg-blue-50' 
-                : 'border-gray-300 hover:border-[#0052cc]'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <Upload size={32} className="mx-auto text-gray-400 mb-3" />
-            <h3 className="font-medium text-gray-900 mb-2">Upload Payment Excel File</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Drag and drop your Excel file here, or click to browse
-            </p>
-            
-            <div className="flex space-x-3 justify-center">
-              <Button 
-                variant="outline" 
-                className="relative overflow-hidden"
-                onClick={() => document.getElementById('file-upload')?.click()}
-              >
-                <Upload size={16} className="mr-2" />
-                Choose File
-                <input
-                  id="file-upload"
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileUpload}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-              </Button>
-              
-              <Button variant="outline">
-                <Download size={16} className="mr-2" />
-                Template
-              </Button>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+            <div className="text-lg font-bold">
+              {payments.filter(p => p.status === 'Paid').length}
             </div>
+            <div className="text-xs text-blue-100">Paid</div>
+          </div>
+          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+            <div className="text-lg font-bold">
+              {payments.filter(p => p.status === 'Pending').length}
+            </div>
+            <div className="text-xs text-blue-100">Pending</div>
+          </div>
+          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+            <div className="text-lg font-bold">
+              {payments.filter(p => p.status === 'Excess').length}
+            </div>
+            <div className="text-xs text-blue-100">Excess</div>
           </div>
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Upload and Manual Entry Cards */}
       <div className="px-4 mb-6">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-xl font-bold text-green-600">
-              {payments.filter(p => p.status === 'Paid').length}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Upload Excel Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="text-center">
+              <FileSpreadsheet size={24} className="mx-auto text-[#0052cc] mb-2" />
+              <h3 className="font-medium text-gray-900 text-sm mb-2">Upload Payments</h3>
+              <p className="text-xs text-gray-600 mb-3">Import payments in seconds!</p>
+              <Button 
+                size="sm" 
+                className="bg-[#0052cc] hover:bg-blue-700 w-full h-8 text-xs"
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                <Upload size={14} className="mr-1" />
+                Choose File
+              </Button>
+              <input
+                id="file-upload"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </div>
-            <div className="text-xs text-gray-600">Paid</div>
           </div>
-          <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-xl font-bold text-yellow-600">
-              {payments.filter(p => p.status === 'Pending').length}
+
+          {/* Manual Entry Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="text-center">
+              <Plus size={24} className="mx-auto text-[#0052cc] mb-2" />
+              <h3 className="font-medium text-gray-900 text-sm mb-2">Add Payment</h3>
+              <p className="text-xs text-gray-600 mb-3">Manual entry</p>
+              <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 w-full h-8 text-xs">
+                Add Payment
+              </Button>
             </div>
-            <div className="text-xs text-gray-600">Pending</div>
-          </div>
-          <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-xl font-bold text-blue-600">
-              {payments.filter(p => p.status === 'Excess').length}
-            </div>
-            <div className="text-xs text-gray-600">Excess</div>
           </div>
         </div>
       </div>
 
       {/* Payment List */}
-      <div className="px-4">
-        <div className="flex items-center space-x-2 mb-4">
+      <div className="px-1">
+        <div className="flex items-center space-x-2 px-3 mb-4">
           <DollarSign size={18} className="text-[#0052cc]" />
           <h2 className="font-semibold text-gray-900">Recent Payments</h2>
         </div>

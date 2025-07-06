@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Plus, Users, Phone, Mail, DollarSign, Filter } from 'lucide-react';
+import { Search, Plus, Users, Phone, Mail, DollarSign, Filter, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -56,17 +56,17 @@ const StudentManagement: React.FC = () => {
 
   const StudentCard = ({ student, index }: any) => (
     <div 
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200 mx-3"
       style={{ animationDelay: `${index * 100}ms` }}
     >
       <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 text-lg">{student.name}</h3>
-          <p className="text-sm text-gray-600 mb-1">{student.batch}</p>
-          <div className="flex items-center space-x-4 text-xs text-gray-500">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-900 text-base truncate">{student.name}</h3>
+          <p className="text-sm text-gray-600 mb-1 truncate">{student.batch}</p>
+          <div className="flex flex-col space-y-1 text-xs text-gray-500">
             <div className="flex items-center space-x-1">
               <Mail size={12} />
-              <span>{student.email}</span>
+              <span className="truncate">{student.email}</span>
             </div>
             <div className="flex items-center space-x-1">
               <Phone size={12} />
@@ -74,7 +74,7 @@ const StudentManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.paymentStatus)}`}>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${getStatusColor(student.paymentStatus)}`}>
           {student.paymentStatus}
         </span>
       </div>
@@ -83,13 +83,13 @@ const StudentManagement: React.FC = () => {
         <div className="flex items-center space-x-1 text-sm">
           <DollarSign size={14} className="text-[#0052cc]" />
           <span className="font-medium">${student.amount}</span>
-          <span className="text-gray-500">• {student.lastPayment}</span>
+          <span className="text-gray-500 text-xs">• {student.lastPayment}</span>
         </div>
         <div className="flex space-x-2">
-          <Button size="sm" variant="outline" className="text-xs">
+          <Button size="sm" variant="outline" className="text-xs h-8 px-3">
             Edit
           </Button>
-          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs">
+          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8 px-3">
             Payment
           </Button>
         </div>
@@ -104,9 +104,9 @@ const StudentManagement: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Students</h1>
-            <p className="text-gray-600">Manage your students and track payments</p>
+            <p className="text-gray-600 text-sm">Manage your students and track payments</p>
           </div>
-          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px]">
+          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px] p-0 flex items-center justify-center">
             <Plus size={20} />
           </Button>
         </div>
@@ -119,7 +119,7 @@ const StudentManagement: React.FC = () => {
               placeholder="Search students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-10"
             />
           </div>
           <Button variant="outline" size="sm" className="min-w-[48px] min-h-[48px] px-3">
@@ -128,39 +128,42 @@ const StudentManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Two Cards Side by Side */}
       <div className="px-4 py-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-xl font-bold text-[#0052cc]">{students.length}</div>
-            <div className="text-xs text-gray-600">Total</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+            <div className="text-xl font-bold">{students.filter(s => s.status === 'Active').length}</div>
+            <div className="text-xs text-blue-100">Active Students</div>
           </div>
-          <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-xl font-bold text-green-600">
-              {students.filter(s => s.paymentStatus === 'Paid').length}
-            </div>
-            <div className="text-xs text-gray-600">Paid</div>
-          </div>
-          <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-xl font-bold text-yellow-600">
-              {students.filter(s => s.paymentStatus === 'Pending').length}
-            </div>
-            <div className="text-xs text-gray-600">Pending</div>
+          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+            <div className="text-xl font-bold">0</div>
+            <div className="text-xs text-blue-100">Inactive Students</div>
           </div>
         </div>
       </div>
 
       {/* Student List */}
-      <div className="px-4">
-        <div className="flex items-center space-x-2 mb-4">
-          <Users size={18} className="text-[#0052cc]" />
-          <h2 className="font-semibold text-gray-900">Student Directory</h2>
+      <div className="px-1">
+        <div className="flex items-center justify-between px-3 mb-4">
+          <div className="flex items-center space-x-2">
+            <Users size={18} className="text-[#0052cc]" />
+            <h2 className="font-semibold text-gray-900">Student Directory</h2>
+          </div>
+          <Button variant="outline" size="sm" className="h-8 px-3">
+            <Download size={14} className="mr-1" />
+            CSV
+          </Button>
         </div>
         
         {students.map((student, index) => (
           <StudentCard key={student.id} student={student} index={index} />
         ))}
       </div>
+
+      {/* Floating Add Button */}
+      <Button className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-[#0052cc] hover:bg-blue-700 shadow-lg z-10">
+        <Plus size={24} />
+      </Button>
     </div>
   );
 };
