@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Users, ChevronRight, Filter, CalendarPlus, Sparkles } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, ChevronRight, Filter, CalendarPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AddClassForm from './AddClassForm';
 
@@ -8,12 +8,15 @@ const ClassSchedule: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('daily');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showDateClasses, setShowDateClasses] = useState(false);
+  const [selectedDateClasses, setSelectedDateClasses] = useState<any[]>([]);
 
   // Mock class data
   const classes = [
     {
       id: 1,
-      batchName: 'Dance Level 1',
+      className: 'Dance Level 1',
       time: '09:00 AM',
       duration: '1 hour',
       location: 'Studio A',
@@ -23,7 +26,7 @@ const ClassSchedule: React.FC = () => {
     },
     {
       id: 2,
-      batchName: 'Math Tutoring',
+      className: 'Math Tutoring',
       time: '02:00 PM',
       duration: '2 hours',
       location: 'Room 101',
@@ -33,18 +36,56 @@ const ClassSchedule: React.FC = () => {
     },
     {
       id: 3,
-      batchName: 'Dance Level 2',
+      className: 'Dance Level 2',
       time: '05:00 PM',
       duration: '1.5 hours',
       location: 'Studio B',
       students: 12,
       date: '2024-01-20',
       status: 'completed'
+    },
+    {
+      id: 4,
+      className: 'Salsa Beginners',
+      time: '10:00 AM',
+      duration: '1 hour',
+      location: 'Studio A',
+      students: 6,
+      date: '2024-01-22',
+      status: 'upcoming'
     }
   ];
 
   const todayClasses = classes.filter(c => c.date === '2024-01-20');
   const upcomingClasses = todayClasses.filter(c => c.status === 'upcoming');
+
+  const handleDateClick = (date: string) => {
+    const dateClasses = classes.filter(c => c.date === date);
+    setSelectedDateClasses(dateClasses);
+    setShowDateClasses(true);
+  };
+
+  const generateCalendarDays = () => {
+    const days = [];
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    for (let day = 1; day <= endOfMonth.getDate(); day++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      const dateString = date.toISOString().split('T')[0];
+      const hasClasses = classes.some(c => c.date === dateString);
+      
+      days.push({
+        day,
+        date: dateString,
+        hasClasses,
+        classCount: classes.filter(c => c.date === dateString).length
+      });
+    }
+    
+    return days;
+  };
 
   const ClassCard = ({ classItem, index }: any) => (
     <div 
@@ -54,7 +95,7 @@ const ClassSchedule: React.FC = () => {
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-2">
-            <h3 className="font-semibold text-gray-900 text-base truncate">{classItem.batchName}</h3>
+            <h3 className="font-semibold text-gray-900 text-base truncate">{classItem.className}</h3>
             <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
               classItem.status === 'upcoming' 
                 ? 'bg-blue-100 text-blue-800' 
@@ -107,10 +148,10 @@ const ClassSchedule: React.FC = () => {
                 <Calendar size={16} className="text-white" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
-                Class Command Center 🎯
+                Class Command Center
               </h1>
             </div>
-            <p className="text-gray-600 text-sm pl-11">Orchestrate your teaching symphony 🎼</p>
+            <p className="text-gray-600 text-sm pl-11">Orchestrate your teaching symphony</p>
           </div>
         </div>
 
@@ -128,7 +169,10 @@ const ClassSchedule: React.FC = () => {
             <Button
               size="sm"
               variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('calendar')}
+              onClick={() => {
+                setViewMode('calendar');
+                setShowCalendar(true);
+              }}
               className="h-8 px-3 text-xs"
             >
               Calendar
@@ -140,13 +184,110 @@ const ClassSchedule: React.FC = () => {
         </div>
       </div>
 
+      {/* Calendar View Modal */}
+      {showCalendar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl m-4 animate-scale-in">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Select Date</h3>
+              <button
+                onClick={() => setShowCalendar(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-7 gap-2 mb-4">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {generateCalendarDays().map((dateObj) => (
+                  <button
+                    key={dateObj.day}
+                    onClick={() => {
+                      handleDateClick(dateObj.date);
+                      setShowCalendar(false);
+                    }}
+                    className={`relative h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      dateObj.hasClasses
+                        ? 'bg-[#0052cc] text-white hover:bg-blue-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {dateObj.day}
+                    {dateObj.hasClasses && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                        {dateObj.classCount}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Date Classes Modal */}
+      {showDateClasses && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl m-4 animate-scale-in max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Classes on {new Date(selectedDateClasses[0]?.date || '').toLocaleDateString()}
+              </h3>
+              <button
+                onClick={() => setShowDateClasses(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              {selectedDateClasses.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedDateClasses.map((classItem, index) => (
+                    <div key={classItem.id} className="bg-gray-50 rounded-lg p-3">
+                      <h4 className="font-medium text-gray-900">{classItem.className}</h4>
+                      <div className="text-sm text-gray-600 mt-1 space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <Clock size={12} />
+                          <span>{classItem.time} • {classItem.duration}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <MapPin size={12} />
+                          <span>{classItem.location}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Users size={12} />
+                          <span>{classItem.students} students</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500">No classes scheduled for this date</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Today's Overview */}
       <div className="px-4 py-4">
         <div className="bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl p-4 text-white mb-6 relative overflow-hidden">
-          <Sparkles size={24} className="absolute top-3 right-3 opacity-30" />
           <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="text-2xl font-bold">Today's Mission 🚀</div>
+              <div className="text-2xl font-bold">Today's Mission</div>
               <div className="text-blue-100 text-sm">
                 {new Date().toLocaleDateString('en-US', { 
                   weekday: 'long', 
@@ -176,7 +317,7 @@ const ClassSchedule: React.FC = () => {
         <div className="flex items-center justify-between px-3 mb-4">
           <div className="flex items-center space-x-2">
             <Clock size={18} className="text-[#0052cc] animate-pulse" />
-            <h2 className="font-semibold text-gray-900">Today's Schedule ⚡</h2>
+            <h2 className="font-semibold text-gray-900">Today's Schedule</h2>
           </div>
           <Button variant="ghost" size="sm" className="text-[#0052cc] h-8 px-3 text-xs hover:bg-blue-50">
             View All
@@ -191,7 +332,7 @@ const ClassSchedule: React.FC = () => {
           <div className="text-center py-12 px-4">
             <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-500 mb-2">No classes today</h3>
-            <p className="text-gray-400 mb-4">Perfect time to plan ahead! 📅</p>
+            <p className="text-gray-400 mb-4">Perfect time to plan ahead!</p>
             <Button 
               onClick={() => setShowAddForm(true)}
               className="bg-[#0052cc] hover:bg-blue-700"

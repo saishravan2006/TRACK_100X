@@ -14,13 +14,13 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
     name: '',
     email: '',
     phone: '',
-    batch: '',
+    className: '',
     notes: ''
   });
 
   const [errors, setErrors] = useState<any>({});
 
-  const batches = ['Dance Level 1', 'Dance Level 2', 'Math Tutoring', 'Salsa Beginners', 'Advanced Ballet'];
+  const classes = ['Dance Level 1', 'Dance Level 2', 'Math Tutoring', 'Salsa Beginners', 'Advanced Ballet'];
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -32,7 +32,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
   const validateForm = () => {
     const newErrors: any = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.batch.trim()) newErrors.batch = 'Batch is required';
+    if (!formData.className.trim()) newErrors.className = 'Class is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -41,7 +41,6 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
   const handleSave = () => {
     if (validateForm()) {
       onSave(formData);
-      // Vibration feedback
       if (navigator.vibrate) {
         navigator.vibrate(100);
       }
@@ -49,15 +48,15 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50 animate-fade-in">
-      <div className="w-full max-w-md bg-white rounded-t-2xl shadow-xl animate-slide-in-bottom">
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black bg-opacity-50 animate-fade-in">
+      <div className="w-full max-w-md bg-white rounded-t-2xl shadow-xl animate-slide-in-bottom pb-safe-area-pb">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
               <User size={16} className="text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Add New Student 🌟</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Add New Student</h2>
           </div>
           <button
             onClick={onClose}
@@ -68,7 +67,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
         </div>
 
         {/* Form */}
-        <div className="p-4 max-h-96 overflow-y-auto">
+        <div className="p-4 max-h-[50vh] overflow-y-auto">
           <div className="space-y-4">
             {/* Name Field */}
             <div>
@@ -115,23 +114,23 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
               />
             </div>
 
-            {/* Batch Field */}
+            {/* Class Field */}
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
                 <BookOpen size={16} className="text-[#0052cc]" />
-                <span>Batch/Class *</span>
+                <span>Class *</span>
               </label>
               <select
-                value={formData.batch}
-                onChange={(e) => handleInputChange('batch', e.target.value)}
-                className={`w-full h-12 px-3 border rounded-md bg-white ${errors.batch ? 'border-red-500' : 'border-blue-200'} focus:border-[#0052cc] focus:outline-none`}
+                value={formData.className}
+                onChange={(e) => handleInputChange('className', e.target.value)}
+                className={`w-full h-12 px-3 border rounded-md bg-white ${errors.className ? 'border-red-500' : 'border-blue-200'} focus:border-[#0052cc] focus:outline-none`}
               >
-                <option value="">Select a batch</option>
-                {batches.map((batch) => (
-                  <option key={batch} value={batch}>{batch}</option>
+                <option value="">Select a class</option>
+                {classes.map((className) => (
+                  <option key={className} value={className}>{className}</option>
                 ))}
               </select>
-              {errors.batch && <p className="text-red-500 text-xs mt-1">{errors.batch}</p>}
+              {errors.className && <p className="text-red-500 text-xs mt-1">{errors.className}</p>}
             </div>
 
             {/* Notes Field */}
@@ -154,7 +153,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="p-4 border-t border-gray-200 flex space-x-3">
+        <div className="p-4 border-t border-gray-200 flex space-x-3 bg-white">
           <Button
             onClick={onClose}
             variant="outline"

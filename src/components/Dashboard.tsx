@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Calendar, DollarSign, X, Bell, Sparkles } from 'lucide-react';
+import { TrendingUp, Users, Calendar, DollarSign, X, Bell } from 'lucide-react';
 import RevenueChart from './RevenueChart';
 
 const Dashboard: React.FC = () => {
@@ -28,11 +28,6 @@ const Dashboard: React.FC = () => {
       className={`bg-gradient-to-br from-[#0052cc] to-blue-600 text-white p-4 rounded-xl shadow-lg animate-fade-in w-full relative overflow-hidden`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      {/* Sparkle background effect */}
-      <div className="absolute top-2 right-2">
-        <Sparkles size={16} className="opacity-30 animate-pulse" />
-      </div>
-      
       <div className="flex items-center justify-between mb-2">
         <Icon size={24} className="opacity-80" />
         <div className="text-right">
@@ -78,7 +73,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Bell size={18} className="animate-pulse" />
               <span className="text-sm font-medium">
-                🎯 Track 10X Alert: Next class in 45 minutes!
+                Track 10X Alert: Next class in 45 minutes!
               </span>
             </div>
             <button
@@ -95,13 +90,13 @@ const Dashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
         <div className="flex items-center space-x-3 mb-2">
           <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
-            <Sparkles size={16} className="text-white" />
+            <DollarSign size={16} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
-            Welcome Back, Champion! 🚀
+            Welcome Back, Champion!
           </h1>
         </div>
-        <p className="text-gray-600 text-sm pl-11">Your teaching empire is growing strong ✨</p>
+        <p className="text-gray-600 text-sm pl-11">Your teaching empire is growing strong</p>
       </div>
 
       {/* Metric Cards */}
@@ -118,14 +113,14 @@ const Dashboard: React.FC = () => {
           icon={Users}
           title="Active Students"
           value={dashboardData.totalStudents}
-          subtitle="Lives you're transforming 💪"
+          subtitle="Lives you're transforming"
           delay={200}
         />
         <MetricCard
           icon={Calendar}
           title="Classes This Month"
           value={dashboardData.classesThisMonth}
-          subtitle="Incredible progress! 🔥"
+          subtitle="Incredible progress!"
           delay={400}
         />
       </div>
@@ -136,7 +131,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <TrendingUp size={20} className="text-[#0052cc]" />
-              <span>Revenue Trajectory 📈</span>
+              <span>Revenue Trajectory</span>
             </h2>
           </div>
           <RevenueChart />
