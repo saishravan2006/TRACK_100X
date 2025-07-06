@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Calendar, DollarSign, X, Bell } from 'lucide-react';
+import { TrendingUp, Users, Calendar, DollarSign, X, Bell, Sparkles } from 'lucide-react';
 import RevenueChart from './RevenueChart';
 
 const Dashboard: React.FC = () => {
@@ -23,14 +23,27 @@ const Dashboard: React.FC = () => {
     }
   }, []);
 
-  const MetricCard = ({ icon: Icon, title, value, subtitle, delay }: any) => (
+  const MetricCard = ({ icon: Icon, title, value, subtitle, delay, showGrowth = false }: any) => (
     <div 
-      className={`bg-[#0052cc] text-white p-4 rounded-xl shadow-lg animate-fade-in w-full`}
+      className={`bg-gradient-to-br from-[#0052cc] to-blue-600 text-white p-4 rounded-xl shadow-lg animate-fade-in w-full relative overflow-hidden`}
       style={{ animationDelay: `${delay}ms` }}
     >
+      {/* Sparkle background effect */}
+      <div className="absolute top-2 right-2">
+        <Sparkles size={16} className="opacity-30 animate-pulse" />
+      </div>
+      
       <div className="flex items-center justify-between mb-2">
         <Icon size={24} className="opacity-80" />
-        <span className="text-2xl font-bold">{value}</span>
+        <div className="text-right">
+          <span className="text-2xl font-bold">{value}</span>
+          {showGrowth && (
+            <div className="flex items-center justify-end mt-1">
+              <TrendingUp size={14} className="mr-1" />
+              <span className="text-sm font-medium text-green-200">+{dashboardData.revenueGrowth}%</span>
+            </div>
+          )}
+        </div>
       </div>
       <h3 className="text-sm opacity-90 mb-1">{title}</h3>
       {subtitle && <p className="text-xs opacity-70">{subtitle}</p>}
@@ -60,12 +73,12 @@ const Dashboard: React.FC = () => {
 
       {/* Notification Banner */}
       {showNotification && (
-        <div className="bg-[#28a745] text-white px-4 py-3 animate-slide-in-top">
+        <div className="bg-gradient-to-r from-[#28a745] to-green-600 text-white px-4 py-3 animate-slide-in-top">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Bell size={18} />
+              <Bell size={18} className="animate-pulse" />
               <span className="text-sm font-medium">
-                Track 10X Alert: Next class in 45 minutes!
+                🎯 Track 10X Alert: Next class in 45 minutes!
               </span>
             </div>
             <button
@@ -79,9 +92,16 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="bg-white px-4 py-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here's your overview</p>
+      <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
+        <div className="flex items-center space-x-3 mb-2">
+          <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
+            <Sparkles size={16} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
+            Welcome Back, Champion! 🚀
+          </h1>
+        </div>
+        <p className="text-gray-600 text-sm pl-11">Your teaching empire is growing strong ✨</p>
       </div>
 
       {/* Metric Cards */}
@@ -90,31 +110,34 @@ const Dashboard: React.FC = () => {
           icon={DollarSign}
           title="Monthly Revenue"
           value={`$${dashboardData.monthlyRevenue}`}
-          subtitle={`+${dashboardData.revenueGrowth}% from last month`}
+          subtitle="Keep the momentum going!"
           delay={0}
+          showGrowth={true}
         />
         <MetricCard
           icon={Users}
-          title="Total Students"
+          title="Active Students"
           value={dashboardData.totalStudents}
-          subtitle="Active learners"
+          subtitle="Lives you're transforming 💪"
           delay={200}
         />
         <MetricCard
           icon={Calendar}
           title="Classes This Month"
           value={dashboardData.classesThisMonth}
-          subtitle="Great progress!"
+          subtitle="Incredible progress! 🔥"
           delay={400}
         />
       </div>
 
       {/* Revenue Chart */}
       <div className="px-4 pb-6">
-        <div className="bg-white rounded-xl shadow-lg p-4 animate-fade-in" style={{ animationDelay: '600ms' }}>
+        <div className="bg-white rounded-xl shadow-lg p-4 animate-fade-in border-l-4 border-[#0052cc]" style={{ animationDelay: '600ms' }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Revenue Growth</h2>
-            <TrendingUp size={20} className="text-[#0052cc]" />
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+              <TrendingUp size={20} className="text-[#0052cc]" />
+              <span>Revenue Trajectory 📈</span>
+            </h2>
           </div>
           <RevenueChart />
         </div>

@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
-import { Search, Plus, Users, Phone, Mail, DollarSign, Filter, Download } from 'lucide-react';
+import { Search, Users, Phone, Mail, DollarSign, Filter, Download, X, UserPlus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AddStudentForm from './AddStudentForm';
 
 const StudentManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Mock student data
   const students = [
@@ -100,44 +102,49 @@ const StudentManagement: React.FC = () => {
   return (
     <div className="pb-20 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="bg-white px-4 py-6 shadow-sm">
+      <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Students</h1>
-            <p className="text-gray-600 text-sm">Manage your students and track payments</p>
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
+                <Users size={16} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
+                Your Star Students ⭐
+              </h1>
+            </div>
+            <p className="text-gray-600 text-sm pl-11">Building futures, one student at a time 🎯</p>
           </div>
-          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px] p-0 flex items-center justify-center">
-            <Plus size={20} />
-          </Button>
         </div>
 
         {/* Search and Filter */}
         <div className="flex space-x-3">
           <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 animate-pulse" />
             <Input
-              placeholder="Search students..."
+              placeholder="Search your amazing students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-10"
+              className="pl-10 h-10 border-blue-200 focus:border-[#0052cc]"
             />
           </div>
-          <Button variant="outline" size="sm" className="min-w-[48px] min-h-[48px] px-3">
+          <Button variant="outline" size="sm" className="min-w-[48px] min-h-[48px] px-3 border-blue-200 hover:bg-blue-50">
             <Filter size={16} />
           </Button>
         </div>
       </div>
 
-      {/* Two Cards Side by Side */}
+      {/* Stats Cards */}
       <div className="px-4 py-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+          <div className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center shadow-sm relative overflow-hidden">
+            <Sparkles size={14} className="absolute top-2 right-2 opacity-30" />
             <div className="text-xl font-bold">{students.filter(s => s.status === 'Active').length}</div>
-            <div className="text-xs text-blue-100">Active Students</div>
+            <div className="text-xs text-blue-100">Active Champions</div>
           </div>
-          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
+          <div className="bg-gradient-to-br from-gray-500 to-gray-600 text-white rounded-lg p-3 text-center shadow-sm relative overflow-hidden">
             <div className="text-xl font-bold">0</div>
-            <div className="text-xs text-blue-100">Inactive Students</div>
+            <div className="text-xs text-gray-100">Taking a Break</div>
           </div>
         </div>
       </div>
@@ -147,9 +154,9 @@ const StudentManagement: React.FC = () => {
         <div className="flex items-center justify-between px-3 mb-4">
           <div className="flex items-center space-x-2">
             <Users size={18} className="text-[#0052cc]" />
-            <h2 className="font-semibold text-gray-900">Student Directory</h2>
+            <h2 className="font-semibold text-gray-900">Student Directory 📚</h2>
           </div>
-          <Button variant="outline" size="sm" className="h-8 px-3">
+          <Button variant="outline" size="sm" className="h-8 px-3 border-blue-200 hover:bg-blue-50">
             <Download size={14} className="mr-1" />
             CSV
           </Button>
@@ -161,9 +168,24 @@ const StudentManagement: React.FC = () => {
       </div>
 
       {/* Floating Add Button */}
-      <Button className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-[#0052cc] hover:bg-blue-700 shadow-lg z-10">
-        <Plus size={24} />
+      <Button 
+        onClick={() => setShowAddForm(true)}
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 shadow-lg z-10 animate-bounce"
+        style={{ animationDuration: '3s' }}
+      >
+        <UserPlus size={24} />
       </Button>
+
+      {/* Add Student Form */}
+      {showAddForm && (
+        <AddStudentForm 
+          onClose={() => setShowAddForm(false)}
+          onSave={(studentData) => {
+            console.log('New student:', studentData);
+            setShowAddForm(false);
+          }}
+        />
+      )}
     </div>
   );
 };

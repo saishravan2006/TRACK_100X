@@ -142,6 +142,34 @@ All colors MUST be HSL.
     }
   }
 
+  @keyframes slide-in-bottom {
+    0% {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-in-bottom {
+    animation: slide-in-bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes glow {
+    0%, 100% {
+      box-shadow: 0 0 5px rgba(0, 82, 204, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(0, 82, 204, 0.6);
+    }
+  }
+  
+  .animate-glow {
+    animation: glow 0.2s ease-in-out;
+  }
+
   /* Confetti animation */
   .confetti-container {
     position: relative;

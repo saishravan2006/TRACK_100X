@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Plus, Users, ChevronRight, Filter } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, ChevronRight, Filter, CalendarPlus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AddClassForm from './AddClassForm';
 
 const ClassSchedule: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'calendar'
+  const [viewMode, setViewMode] = useState('daily');
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Mock class data
   const classes = [
@@ -97,15 +99,19 @@ const ClassSchedule: React.FC = () => {
   return (
     <div className="pb-20 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="bg-white px-4 py-6 shadow-sm">
+      <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Schedule</h1>
-            <p className="text-gray-600 text-sm">Manage your classes and batches</p>
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
+                <Calendar size={16} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
+                Class Command Center 🎯
+              </h1>
+            </div>
+            <p className="text-gray-600 text-sm pl-11">Orchestrate your teaching symphony 🎼</p>
           </div>
-          <Button className="bg-[#0052cc] hover:bg-blue-700 min-w-[48px] min-h-[48px] p-0 flex items-center justify-center">
-            <Plus size={20} />
-          </Button>
         </div>
 
         {/* View Toggle and Filter */}
@@ -128,7 +134,7 @@ const ClassSchedule: React.FC = () => {
               Calendar
             </Button>
           </div>
-          <Button variant="outline" size="sm" className="min-w-[48px] min-h-[48px] px-3">
+          <Button variant="outline" size="sm" className="min-w-[48px] min-h-[48px] px-3 border-blue-200 hover:bg-blue-50">
             <Filter size={16} />
           </Button>
         </div>
@@ -136,10 +142,11 @@ const ClassSchedule: React.FC = () => {
 
       {/* Today's Overview */}
       <div className="px-4 py-4">
-        <div className="bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl p-4 text-white mb-6">
+        <div className="bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl p-4 text-white mb-6 relative overflow-hidden">
+          <Sparkles size={24} className="absolute top-3 right-3 opacity-30" />
           <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="text-2xl font-bold">Today</div>
+              <div className="text-2xl font-bold">Today's Mission 🚀</div>
               <div className="text-blue-100 text-sm">
                 {new Date().toLocaleDateString('en-US', { 
                   weekday: 'long', 
@@ -158,7 +165,7 @@ const ClassSchedule: React.FC = () => {
             </div>
             <div className="bg-white/10 rounded-lg p-3 text-center">
               <div className="text-xl font-bold">{upcomingClasses.length}</div>
-              <div className="text-xs text-blue-100">Upcoming</div>
+              <div className="text-xs text-blue-100">Ready to Rock!</div>
             </div>
           </div>
         </div>
@@ -168,10 +175,10 @@ const ClassSchedule: React.FC = () => {
       <div className="px-1">
         <div className="flex items-center justify-between px-3 mb-4">
           <div className="flex items-center space-x-2">
-            <Clock size={18} className="text-[#0052cc]" />
-            <h2 className="font-semibold text-gray-900">Today's Classes</h2>
+            <Clock size={18} className="text-[#0052cc] animate-pulse" />
+            <h2 className="font-semibold text-gray-900">Today's Schedule ⚡</h2>
           </div>
-          <Button variant="ghost" size="sm" className="text-[#0052cc] h-8 px-3 text-xs">
+          <Button variant="ghost" size="sm" className="text-[#0052cc] h-8 px-3 text-xs hover:bg-blue-50">
             View All
           </Button>
         </div>
@@ -184,8 +191,11 @@ const ClassSchedule: React.FC = () => {
           <div className="text-center py-12 px-4">
             <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-500 mb-2">No classes today</h3>
-            <p className="text-gray-400 mb-4">Take a well-deserved break!</p>
-            <Button className="bg-[#0052cc] hover:bg-blue-700">
+            <p className="text-gray-400 mb-4">Perfect time to plan ahead! 📅</p>
+            <Button 
+              onClick={() => setShowAddForm(true)}
+              className="bg-[#0052cc] hover:bg-blue-700"
+            >
               Schedule New Class
             </Button>
           </div>
@@ -193,9 +203,24 @@ const ClassSchedule: React.FC = () => {
       </div>
 
       {/* Floating Add Button */}
-      <Button className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-[#0052cc] hover:bg-blue-700 shadow-lg z-10">
-        <Plus size={24} />
+      <Button 
+        onClick={() => setShowAddForm(true)}
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 shadow-lg z-10 animate-bounce"
+        style={{ animationDuration: '3s' }}
+      >
+        <CalendarPlus size={24} />
       </Button>
+
+      {/* Add Class Form */}
+      {showAddForm && (
+        <AddClassForm 
+          onClose={() => setShowAddForm(false)}
+          onSave={(classData) => {
+            console.log('New class:', classData);
+            setShowAddForm(false);
+          }}
+        />
+      )}
     </div>
   );
 };
