@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Calendar, DollarSign, X, Bell } from 'lucide-react';
+import { TrendingUp, Users, Calendar, X, Bell } from 'lucide-react';
 import RevenueChart from './RevenueChart';
 
 const Dashboard: React.FC = () => {
@@ -89,22 +89,19 @@ const Dashboard: React.FC = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
         <div className="flex items-center space-x-3 mb-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
-            <DollarSign size={16} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold text-black">
             Welcome Back, Champion!
           </h1>
         </div>
-        <p className="text-gray-600 text-sm pl-11">Your teaching empire is growing strong</p>
+        <p className="text-gray-600 text-sm">Your teaching empire is growing strong</p>
       </div>
 
       {/* Metric Cards */}
       <div className="px-4 py-6 space-y-4">
         <MetricCard
-          icon={DollarSign}
+          icon={TrendingUp}
           title="Monthly Revenue"
-          value={`$${dashboardData.monthlyRevenue}`}
+          value={`₹${dashboardData.monthlyRevenue}`}
           subtitle="Keep the momentum going!"
           delay={0}
           showGrowth={true}

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, BookOpen, FileText, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 interface AddStudentFormProps {
   onClose: () => void;
   onSave: (studentData: any) => void;
+  editingStudent?: any;
 }
 
-const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
+const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editingStudent }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,6 +22,18 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
   const [errors, setErrors] = useState<any>({});
 
   const classes = ['Dance Level 1', 'Dance Level 2', 'Math Tutoring', 'Salsa Beginners', 'Advanced Ballet'];
+
+  useEffect(() => {
+    if (editingStudent) {
+      setFormData({
+        name: editingStudent.name || '',
+        email: editingStudent.email || '',
+        phone: editingStudent.phone || '',
+        className: editingStudent.className || '',
+        notes: editingStudent.notes || ''
+      });
+    }
+  }, [editingStudent]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -56,7 +69,9 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
             <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
               <User size={16} className="text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Add New Student</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {editingStudent ? 'Edit Student' : 'Add New Student'}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -166,7 +181,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave }) => {
             className="flex-1 h-12 bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white"
           >
             <Check size={16} className="mr-2" />
-            Save Student
+            {editingStudent ? 'Update Student' : 'Save Student'}
           </Button>
         </div>
       </div>

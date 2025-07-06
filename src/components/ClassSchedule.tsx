@@ -125,12 +125,21 @@ const ClassSchedule: React.FC = () => {
       </div>
       
       <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-100">
-        <Button size="sm" variant="outline" className="text-xs flex-1 h-8">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="text-xs flex-1 h-8"
+          onClick={() => console.log('View details for:', classItem.className)}
+        >
           View Details
         </Button>
         {classItem.status === 'upcoming' && (
-          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs flex-1 h-8">
-            Start Class
+          <Button 
+            size="sm" 
+            className="bg-[#0052cc] hover:bg-blue-700 text-xs flex-1 h-8"
+            onClick={() => console.log('Edit class:', classItem.className)}
+          >
+            Edit Class
           </Button>
         )}
       </div>
@@ -147,8 +156,8 @@ const ClassSchedule: React.FC = () => {
               <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
                 <Calendar size={16} className="text-white" />
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0052cc] to-blue-600 bg-clip-text text-transparent">
-                Class Command Center
+              <h1 className="text-2xl font-bold text-black">
+                Daily Scheduler
               </h1>
             </div>
             <p className="text-gray-600 text-sm pl-11">Orchestrate your teaching symphony</p>

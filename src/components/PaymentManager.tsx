@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Upload, Download, DollarSign, FileSpreadsheet, Plus, TrendingUp, Search } from 'lucide-react';
+import { Upload, Download, TrendingUp, FileSpreadsheet, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -13,29 +13,32 @@ const PaymentManager: React.FC = () => {
     {
       id: 1,
       studentName: 'Sarah Johnson',
-      batch: 'Dance Level 1',
+      className: 'Dance Level 1',
       amount: 150,
       date: '2024-01-15',
       status: 'Paid',
-      method: 'Excel Upload'
+      method: 'Excel Upload',
+      phone: '+1 234 567 8901'
     },
     {
       id: 2,
       studentName: 'Mike Chen',
-      batch: 'Math Tutoring',
+      className: 'Math Tutoring',
       amount: 200,
       date: '2024-01-10',
       status: 'Pending',
-      method: 'Manual Entry'
+      method: 'Manual Entry',
+      phone: '+1 234 567 8902'
     },
     {
       id: 3,
       studentName: 'Emily Davis',
-      batch: 'Dance Level 2',
+      className: 'Dance Level 2',
       amount: 300,
       date: '2024-01-08',
       status: 'Excess',
-      method: 'Excel Upload'
+      method: 'Excel Upload',
+      phone: '+1 234 567 8903'
     }
   ];
 
@@ -79,6 +82,13 @@ const PaymentManager: React.FC = () => {
     }
   };
 
+  const handleSendReminder = (payment: any) => {
+    const message = `Hi ${payment.studentName}, this is a friendly reminder that your payment of ₹${payment.amount} for ${payment.className} is pending. Please make the payment at your earliest convenience. Thank you!`;
+    const phoneNumber = payment.phone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const PaymentCard = ({ payment, index }: any) => (
     <div 
       className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200 mx-3"
@@ -87,7 +97,7 @@ const PaymentManager: React.FC = () => {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-900 text-base truncate">{payment.studentName}</h3>
-          <p className="text-sm text-gray-600 mb-1 truncate">{payment.batch}</p>
+          <p className="text-sm text-gray-600 mb-1 truncate">{payment.className}</p>
           <div className="flex items-center space-x-2 text-xs text-gray-500">
             <span>{payment.date}</span>
             <span>•</span>
@@ -95,7 +105,7 @@ const PaymentManager: React.FC = () => {
           </div>
         </div>
         <div className="text-right ml-2">
-          <div className="text-lg font-bold text-gray-900">${payment.amount}</div>
+          <div className="text-lg font-bold text-gray-900">₹{payment.amount}</div>
           <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(payment.status)}`}>
             {payment.status}
           </span>
@@ -104,7 +114,11 @@ const PaymentManager: React.FC = () => {
       
       {payment.status === 'Pending' && (
         <div className="pt-3 border-t border-gray-100">
-          <Button size="sm" className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8 w-full">
+          <Button 
+            size="sm" 
+            className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8 w-full"
+            onClick={() => handleSendReminder(payment)}
+          >
             Send Reminder
           </Button>
         </div>
@@ -118,7 +132,7 @@ const PaymentManager: React.FC = () => {
       <div className="bg-white px-4 py-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Payments</h1>
+            <h1 className="text-2xl font-bold text-black mb-1">Payments</h1>
             <p className="text-gray-600 text-sm">Track and manage student payments</p>
           </div>
           <Button 
@@ -133,7 +147,7 @@ const PaymentManager: React.FC = () => {
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Search students or batches..."
+            placeholder="Search students or classes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 h-10"
@@ -147,7 +161,7 @@ const PaymentManager: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-green-100 mb-1">Total Revenue</div>
-              <div className="text-3xl font-bold">${totalRevenue}</div>
+              <div className="text-3xl font-bold">₹{totalRevenue}</div>
               <div className="text-green-100 text-sm">This month</div>
             </div>
             <TrendingUp size={32} className="opacity-80" />
@@ -223,7 +237,7 @@ const PaymentManager: React.FC = () => {
       {/* Payment List */}
       <div className="px-1">
         <div className="flex items-center space-x-2 px-3 mb-4">
-          <DollarSign size={18} className="text-[#0052cc]" />
+          <TrendingUp size={18} className="text-[#0052cc]" />
           <h2 className="font-semibold text-gray-900">Recent Payments</h2>
         </div>
         
