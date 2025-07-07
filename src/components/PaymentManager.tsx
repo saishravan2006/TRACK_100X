@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -74,35 +75,9 @@ const PaymentManager: React.FC = () => {
     excess: payments.filter(p => p.amount > 1000).length // Example logic
   };
 
-  const handleSavePayment = async (paymentData: any) => {
-    try {
-      const { error } = await supabase
-        .from('payments')
-        .insert({
-          student_id: paymentData.studentId,
-          amount: paymentData.amount,
-          payment_date: paymentData.date,
-          method: paymentData.method,
-          remarks: paymentData.remarks,
-          transaction_ref: paymentData.transactionRef
-        });
-
-      if (error) throw error;
-
-      await fetchPayments();
-      setShowAddForm(false);
-      toast({
-        title: "Success",
-        description: "Payment added successfully",
-      });
-    } catch (error) {
-      console.error('Error saving payment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save payment",
-        variant: "destructive",
-      });
-    }
+  const handlePaymentSaved = async () => {
+    await fetchPayments();
+    setShowAddForm(false);
   };
 
   const handleUpdatePayment = async (paymentId: string, updatedData: any) => {
@@ -428,7 +403,7 @@ const PaymentManager: React.FC = () => {
       {showAddForm && (
         <AddPaymentForm 
           onClose={() => setShowAddForm(false)}
-          onSave={handleSavePayment}
+          onSave={handlePaymentSaved}
           students={students}
         />
       )}
