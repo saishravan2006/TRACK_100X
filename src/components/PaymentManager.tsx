@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Plus, Download, RotateCcw, FileSpreadsheet, Calendar, AlertTriangle } from 'lucide-react';
+import { DollarSign, Plus, Search, RotateCcw, FileSpreadsheet, Calendar, AlertTriangle, Users, Clock, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast, toast } from '@/components/ui/use-toast';
 import AddPaymentForm from './AddPaymentForm';
@@ -8,10 +10,17 @@ import ExcelUploadProcessor from './ExcelUploadProcessor';
 
 const PaymentManager = () => {
   const [payments, setPayments] = useState([]);
+  const [filteredPayments, setFilteredPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [studentStats, setStudentStats] = useState({
+    paid: 0,
+    pending: 0,
+    excess: 0
+  });
   const [stats, setStats] = useState({
     totalAmount: 0,
     monthlyAmount: 0,
@@ -23,7 +32,23 @@ const PaymentManager = () => {
   useEffect(() => {
     fetchPayments();
     fetchStats();
+    fetchStudentStats();
   }, []);
+
+  useEffect(() => {
+    // Filter payments based on search term
+    if (searchTerm.trim() === '') {
+      setFilteredPayments(payments);
+    } else {
+      const filtered = payments.filter(payment => 
+        payment.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.students?.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.amount.toString().includes(searchTerm) ||
+        payment.method.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPayments(filtered);
+    }
+  }, [searchTerm, payments]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -35,6 +60,7 @@ const PaymentManager = () => {
 
       if (error) throw error;
       setPayments(data || []);
+      setFilteredPayments(data || []);
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {
@@ -75,13 +101,35 @@ const PaymentManager = () => {
     }
   };
 
+  const fetchStudentStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('student_balances')
+        .select('status');
+
+      if (error) throw error;
+
+      const stats = data?.reduce((acc, balance) => {
+        if (balance.status === 'paid') acc.paid++;
+        else if (balance.status === 'pending') acc.pending++;
+        else if (balance.status === 'excess') acc.excess++;
+        return acc;
+      }, { paid: 0, pending: 0, excess: 0 }) || { paid: 0, pending: 0, excess: 0 };
+
+      setStudentStats(stats);
+    } catch (error) {
+      console.error('Error fetching student stats:', error);
+    }
+  };
+
   const handlePaymentSaved = () => {
     fetchPayments();
     fetchStats();
+    fetchStudentStats();
   };
 
   const handleResetMonth = async () => {
-    if (!window.confirm('Are you sure you want to reset this month\'s data? This action cannot be undone.')) {
+    if (!window.confirm('Reset all payments? This action cannot be undone.')) {
       return;
     }
 
@@ -181,6 +229,7 @@ const PaymentManager = () => {
       // Refresh the data
       fetchPayments();
       fetchStats();
+      fetchStudentStats();
 
     } catch (error) {
       console.error('Error resetting month:', error);
@@ -195,205 +244,234 @@ const PaymentManager = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl flex items-center justify-center">
-            <DollarSign size={24} className="text-white" />
+    <div className="p-4 space-y-6 max-w-full overflow-hidden">
+      {/* Header with Search and Reset */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl flex items-center justify-center">
+              <DollarSign size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+              <p className="text-gray-600 text-sm">Track and manage student payments</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Payment Manager</h1>
-            <p className="text-gray-600">Track and manage student payments</p>
-          </div>
+          
+          <Button
+            onClick={handleResetMonth}
+            disabled={resetting}
+            size="sm"
+            className="bg-red-600 hover:bg-red-700 text-white h-8 px-3 animate-pulse"
+          >
+            {resetting ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+            ) : (
+              <>
+                <RotateCcw size={14} className="mr-1" />
+                Reset Month
+              </>
+            )}
+          </Button>
         </div>
-        
-        <div className="flex space-x-3">
-          <Button
-            onClick={() => setShowUploadModal(true)}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            <FileSpreadsheet size={16} className="mr-2" />
-            Upload Excel
-          </Button>
-          <Button
-            onClick={() => setShowAddForm(true)}
-            className="bg-[#0052cc] hover:bg-blue-700"
-          >
-            <Plus size={16} className="mr-2" />
-            Add Payment
-          </Button>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Input
+            placeholder="Search payments, students, amounts..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 w-full"
+          />
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Payments</p>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.totalAmount.toLocaleString()}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <DollarSign size={24} className="text-green-600" />
-            </div>
-          </div>
-        </div>
+      {/* Student Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-green-800 flex items-center">
+              <Users size={16} className="mr-2" />
+              Paid Students
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-900">{studentStats.paid}</div>
+            <p className="text-xs text-green-700 mt-1">Payments completed</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">This Month</p>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.monthlyAmount.toLocaleString()}</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <Calendar size={24} className="text-blue-600" />
-            </div>
-          </div>
-        </div>
+        <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-yellow-800 flex items-center">
+              <Clock size={16} className="mr-2" />
+              Pending Students
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-900">{studentStats.pending}</div>
+            <p className="text-xs text-yellow-700 mt-1">Awaiting payment</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Students</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
-            </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-              <DollarSign size={24} className="text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Average Payment</p>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.averagePayment.toLocaleString()}</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-              <DollarSign size={24} className="text-orange-600" />
-            </div>
-          </div>
-        </div>
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800 flex items-center">
+              <TrendingUp size={16} className="mr-2" />
+              Excess Students
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900">{studentStats.excess}</div>
+            <p className="text-xs text-blue-700 mt-1">Advance payments</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3">
-        <Button
-          onClick={handleResetMonth}
-          disabled={resetting}
-          variant="outline"
-          className="border-red-200 text-red-600 hover:bg-red-50"
-        >
-          {resetting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
-              Resetting...
-            </>
-          ) : (
-            <>
-              <RotateCcw size={16} className="mr-2" />
-              Reset Month
-            </>
-          )}
-        </Button>
+      {/* Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer" onClick={() => setShowUploadModal(true)}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
+              <FileSpreadsheet size={20} className="mr-2 text-green-600" />
+              Upload Excel
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full bg-green-600 hover:bg-green-700 mb-2">
+              Upload Payments
+            </Button>
+            <p className="text-xs text-gray-600">Import payments in seconds!</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer" onClick={() => setShowAddForm(true)}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
+              <Plus size={20} className="mr-2 text-[#0052cc]" />
+              Manual Entry
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full bg-[#0052cc] hover:bg-blue-700 mb-2">
+              Add Payment
+            </Button>
+            <p className="text-xs text-gray-600">Enter payment details manually</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="text-xs text-gray-600">Total Revenue</div>
+          <div className="text-lg font-bold text-gray-900">₹{stats.totalAmount.toLocaleString()}</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="text-xs text-gray-600">This Month</div>
+          <div className="text-lg font-bold text-gray-900">₹{stats.monthlyAmount.toLocaleString()}</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="text-xs text-gray-600">Total Students</div>
+          <div className="text-lg font-bold text-gray-900">{stats.totalStudents}</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="text-xs text-gray-600">Avg Payment</div>
+          <div className="text-lg font-bold text-gray-900">₹{stats.averagePayment.toFixed(0)}</div>
+        </div>
       </div>
 
       {/* Payments Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Student
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Class
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Amount
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Method
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Remarks
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="text-center py-10">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0052cc]"></div>
-                </td>
-              </tr>
-            ) : payments.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-10">
-                  <AlertTriangle size={32} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-gray-500">No payments found.</p>
-                </td>
-              </tr>
-            ) : (
-              payments.map((payment: any) => (
-                <tr key={payment.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{payment.students?.name} ({payment.students?.student_id})</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{payment.students?.class_name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">₹{payment.amount}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{new Date(payment.payment_date).toLocaleDateString()}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{payment.method}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{payment.remarks}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <Button
-                      onClick={() => {
-                        setEditingPayment(payment);
-                        setShowAddForm(true);
-                      }}
-                      size="sm"
-                    >
-                      Edit
-                    </Button>
-                  </td>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Recent Payments</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0052cc]"></div>
+                    </td>
+                  </tr>
+                ) : filteredPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8">
+                      <AlertTriangle size={24} className="mx-auto text-gray-400 mb-2" />
+                      <p className="text-gray-500 text-sm">
+                        {searchTerm ? 'No payments match your search.' : 'No payments found.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPayments.map((payment: any) => (
+                    <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-900">{payment.students?.name}</div>
+                        <div className="text-xs text-gray-500">({payment.students?.student_id})</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {new Date(payment.payment_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        ₹{payment.amount}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{payment.method}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          onClick={() => {
+                            setEditingPayment(payment);
+                            setShowAddForm(true);
+                          }}
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          Edit
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Modals */}
       {showAddForm && (
-        <AddPaymentForm
-          onClose={() => setShowAddForm(false)}
-          onSave={handlePaymentSaved}
-          editingPayment={editingPayment}
-        />
+        <div className="animate-slide-in-right">
+          <AddPaymentForm
+            onClose={() => {
+              setShowAddForm(false);
+              setEditingPayment(null);
+            }}
+            onSave={handlePaymentSaved}
+            editingPayment={editingPayment}
+          />
+        </div>
       )}
 
       {showUploadModal && (
-        <ExcelUploadProcessor
-          onClose={() => setShowUploadModal(false)}
-          onSuccess={handlePaymentSaved}
-        />
+        <div className="animate-slide-in-right">
+          <ExcelUploadProcessor
+            onClose={() => setShowUploadModal(false)}
+            onSuccess={handlePaymentSaved}
+          />
+        </div>
       )}
     </div>
   );
