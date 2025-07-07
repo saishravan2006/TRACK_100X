@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -133,14 +132,24 @@ const PaymentManager: React.FC = () => {
 
   const handleMonthlyReset = async () => {
     try {
-      const { error } = await supabase.rpc('reset_monthly_data');
+      // Alternative approach: Delete payments directly instead of using the RPC function
+      const currentDate = new Date();
+      const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .gte('payment_date', firstDayOfMonth.toISOString().split('T')[0])
+        .lte('payment_date', lastDayOfMonth.toISOString().split('T')[0]);
+
       if (error) throw error;
 
       await fetchPayments();
       setShowResetConfirm(false);
       toast({
         title: "Success",
-        description: "Monthly data reset successfully",
+        description: "Monthly payments reset successfully",
       });
     } catch (error) {
       console.error('Error resetting monthly data:', error);
@@ -310,7 +319,7 @@ const PaymentManager: React.FC = () => {
             <Button className="w-full mb-2 bg-white text-[#0052cc] hover:bg-gray-100">
               Upload Payments
             </Button>
-            <p className="text-xs text-blue-100 text-center">Import payments in seconds!</p>
+            <p className="text-xs text-blue-100 text-center">Import Paytm statements!</p>
           </div>
           <div 
             className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-4 cursor-pointer hover:shadow-md transition-all"
@@ -378,8 +387,8 @@ const PaymentManager: React.FC = () => {
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reset all payments?</h3>
-            <p className="text-gray-600 mb-6">This will reset all payment data for the current month. This action cannot be undone.</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reset this month's payments?</h3>
+            <p className="text-gray-600 mb-6">This will delete all payment records for the current month. This action cannot be undone.</p>
             <div className="flex space-x-3">
               <Button
                 onClick={() => setShowResetConfirm(false)}
@@ -392,7 +401,7 @@ const PaymentManager: React.FC = () => {
                 onClick={handleMonthlyReset}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
-                Confirm
+                Confirm Reset
               </Button>
             </div>
           </div>
@@ -404,7 +413,6 @@ const PaymentManager: React.FC = () => {
         <AddPaymentForm 
           onClose={() => setShowAddForm(false)}
           onSave={handlePaymentSaved}
-          students={students}
         />
       )}
 
