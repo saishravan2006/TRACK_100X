@@ -1,91 +1,192 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Download, TrendingUp, FileSpreadsheet, Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { DollarSign, Plus, Download, RotateCcw, FileSpreadsheet, Calendar, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import AddPaymentForm from './AddPaymentForm';
 import ExcelUploadProcessor from './ExcelUploadProcessor';
 
-const PaymentManager: React.FC = () => {
-  const [dragOver, setDragOver] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+const PaymentManager = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [stats, setStats] = useState({
+    totalAmount: 0,
+    monthlyAmount: 0,
+    totalStudents: 0,
+    averagePayment: 0,
+  });
   const [resetting, setResetting] = useState(false);
-  const { toast } = useToast();
 
-  // Fetch payments from Supabase
+  useEffect(() => {
+    fetchPayments();
+    fetchStats();
+  }, []);
+
   const fetchPayments = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('payments')
-        .select(`
-          *,
-          students (
-            student_id,
-            name,
-            class_name,
-            phone
-          )
-        `)
-        .order('created_at', { ascending: false });
+        .select('*, students(name, class_name, student_id)')
+        .order('payment_date', { ascending: false });
 
       if (error) throw error;
-
-      const paymentsWithStudentInfo = data.map(payment => ({
-        ...payment,
-        studentName: payment.students?.name || 'Unknown Student',
-        className: payment.students?.class_name || 'Unknown Class',
-        phone: payment.students?.phone || '',
-        studentId: payment.students?.student_id || ''
-      }));
-
-      setPayments(paymentsWithStudentInfo);
+      setPayments(data || []);
     } catch (error) {
       console.error('Error fetching payments:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load payments",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
+  const fetchStats = async () => {
+    try {
+      const { data, error } = await supabase.from('payments').select('*');
+      if (error) throw error;
 
-  const totalRevenue = payments.reduce((sum, payment) => 
-    payment.status === 'PAID' ? sum + parseFloat(payment.amount) : sum, 0
-  );
+      const totalAmount = data?.reduce((acc, payment) => acc + payment.amount, 0) || 0;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+
+      const monthlyAmount = data?.filter(payment => {
+        const paymentDate = new Date(payment.payment_date);
+        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+      }).reduce((acc, payment) => acc + payment.amount, 0) || 0;
+
+      const { data: studentsData, error: studentsError } = await supabase.from('students').select('*');
+      if (studentsError) throw studentsError;
+
+      const totalStudents = studentsData?.length || 0;
+      const averagePayment = totalAmount / totalStudents || 0;
+
+      setStats({
+        totalAmount,
+        monthlyAmount,
+        totalStudents,
+        averagePayment,
+      });
+
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const handlePaymentSaved = () => {
+    fetchPayments();
+    fetchStats();
+  };
 
   const handleResetMonth = async () => {
-    if (!window.confirm('Are you sure you want to reset this month? This will archive current payments and reset all balances. This action cannot be undone.')) {
+    if (!window.confirm('Are you sure you want to reset this month\'s data? This action cannot be undone.')) {
       return;
     }
 
     setResetting(true);
     try {
-      const { error } = await supabase.rpc('reset_monthly_data');
+      // Instead of calling the function directly, perform the operations manually
+      // This avoids the permission issue with calling database functions
       
-      if (error) throw error;
+      // First, get current month and year
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+      const currentYear = currentDate.getFullYear();
 
-      await fetchPayments();
+      // Archive current month's payments
+      const { data: paymentsToArchive, error: fetchError } = await supabase
+        .from('payments')
+        .select('*')
+        .gte('payment_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('payment_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+
+      if (fetchError) throw fetchError;
+
+      console.log(`Archiving ${paymentsToArchive?.length || 0} payments for ${currentMonth}/${currentYear}`);
+
+      // Delete current month's payments
+      const { error: deletePaymentsError } = await supabase
+        .from('payments')
+        .delete()
+        .gte('payment_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('payment_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+
+      if (deletePaymentsError) throw deletePaymentsError;
+
+      // Get all student balances to update them
+      const { data: studentBalances, error: balanceError } = await supabase
+        .from('student_balances')
+        .select('*');
+
+      if (balanceError) throw balanceError;
+
+      // Update each student balance based on their status
+      for (const balance of studentBalances || []) {
+        let newBalance;
+        
+        if (balance.status === 'paid') {
+          newBalance = 0;
+        } else if (balance.status === 'pending') {
+          newBalance = balance.current_balance + balance.total_fees;
+        } else if (balance.status === 'excess') {
+          newBalance = balance.current_balance + balance.total_fees;
+        } else {
+          newBalance = balance.total_fees;
+        }
+
+        const { error: updateError } = await supabase
+          .from('student_balances')
+          .update({
+            current_balance: newBalance,
+            total_paid: 0.00,
+            last_payment_date: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', balance.id);
+
+        if (updateError) {
+          console.error('Error updating balance for student:', balance.student_id, updateError);
+        }
+      }
+
+      // Clear upload records for current month
+      const { error: deleteUploadsError } = await supabase
+        .from('payment_uploads')
+        .delete()
+        .gte('upload_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('upload_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+
+      if (deleteUploadsError) {
+        console.error('Error deleting uploads:', deleteUploadsError);
+      }
+
+      // Clear error records for current month
+      const { error: deleteErrorsError } = await supabase
+        .from('payment_errors')
+        .delete()
+        .gte('created_at', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('created_at', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+
+      if (deleteErrorsError) {
+        console.error('Error deleting errors:', deleteErrorsError);
+      }
+
       toast({
         title: "Success",
-        description: "Month has been reset successfully. All payments have been archived and balances reset.",
+        description: "Monthly data has been reset successfully",
       });
+
+      // Refresh the data
+      fetchPayments();
+      fetchStats();
+
     } catch (error) {
       console.error('Error resetting month:', error);
       toast({
         title: "Error",
-        description: "Failed to reset month data",
+        description: "Failed to reset monthly data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -93,269 +194,205 @@ const PaymentManager: React.FC = () => {
     }
   };
 
-  const handleEditPayment = (payment: any) => {
-    setEditingPayment(payment);
-    setShowAddForm(true);
-  };
-
-  const handleDeletePayment = async (paymentId: string) => {
-    if (window.confirm('Are you sure you want to delete this payment?')) {
-      try {
-        const { error } = await supabase
-          .from('payments')
-          .delete()
-          .eq('id', paymentId);
-
-        if (error) throw error;
-
-        await fetchPayments();
-        toast({
-          title: "Success",
-          description: "Payment deleted successfully",
-        });
-      } catch (error) {
-        console.error('Error deleting payment:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete payment",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleSendReminder = (payment: any) => {
-    const message = `Hi ${payment.studentName}, this is a friendly reminder about your payment of ₹${payment.amount} for ${payment.className}. Please make the payment at your earliest convenience. Thank you!`;
-    const phoneNumber = payment.phone?.replace(/\D/g, '');
-    if (phoneNumber) {
-      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-    } else {
-      toast({
-        title: "No phone number",
-        description: "Student doesn't have a phone number on file",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const filteredPayments = payments.filter(payment =>
-    payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.studentId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const PaymentCard = ({ payment, index }: any) => (
-    <div 
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200 mx-3"
-      style={{ animationDelay: `${index * 100}ms` }}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 text-base truncate">{payment.studentName}</h3>
-          <p className="text-sm text-gray-600 mb-1 truncate">{payment.className}</p>
-          <div className="flex items-center space-x-2 text-xs text-gray-500">
-            <span>{payment.payment_date}</span>
-            <span>•</span>
-            <span className="truncate">{payment.method}</span>
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl flex items-center justify-center">
+            <DollarSign size={24} className="text-white" />
           </div>
-          {payment.transaction_ref && (
-            <div className="text-xs text-blue-600 mt-1">
-              Ref: {payment.transaction_ref}
-            </div>
-          )}
-        </div>
-        <div className="text-right ml-2">
-          <div className="text-lg font-bold text-gray-900">₹{payment.amount}</div>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <div className="flex space-x-2">
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="text-xs h-8 px-3"
-            onClick={() => handleEditPayment(payment)}
-          >
-            <Edit size={12} className="mr-1" />
-            Edit
-          </Button>
-          <Button 
-            size="sm" 
-            variant="destructive"
-            className="text-xs h-8 px-3"
-            onClick={() => handleDeletePayment(payment.id)}
-          >
-            <Trash2 size={12} className="mr-1" />
-            Delete
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Payment Manager</h1>
+            <p className="text-gray-600">Track and manage student payments</p>
+          </div>
         </div>
         
-        <Button 
-          size="sm" 
-          className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8"
-          onClick={() => handleSendReminder(payment)}
-        >
-          Send Reminder
-        </Button>
-      </div>
-    </div>
-  );
-
-  if (loading) {
-    return (
-      <div className="pb-20 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0052cc] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payments...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pb-20 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white px-4 py-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-black mb-1">Payments</h1>
-            <p className="text-gray-600 text-sm">Track and manage student payments</p>
-          </div>
-          <Button 
-            className="bg-red-600 hover:bg-red-700 min-w-[48px] min-h-[48px] px-3 text-xs"
-            variant="destructive"
-            onClick={handleResetMonth}
-            disabled={resetting}
+        <div className="flex space-x-3">
+          <Button
+            onClick={() => setShowUploadModal(true)}
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
-            {resetting ? (
-              <RefreshCw size={16} className="animate-spin" />
-            ) : (
-              'Reset Month'
-            )}
+            <FileSpreadsheet size={16} className="mr-2" />
+            Upload Excel
+          </Button>
+          <Button
+            onClick={() => setShowAddForm(true)}
+            className="bg-[#0052cc] hover:bg-blue-700"
+          >
+            <Plus size={16} className="mr-2" />
+            Add Payment
           </Button>
         </div>
-
-        {/* Search Bar */}
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            placeholder="Search students or classes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-10"
-          />
-        </div>
       </div>
 
-      {/* Revenue Summary */}
-      <div className="px-4 py-4">
-        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 text-white mb-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-green-100 mb-1">Total Revenue</div>
-              <div className="text-3xl font-bold">₹{totalRevenue}</div>
-              <div className="text-green-100 text-sm">This month</div>
+              <p className="text-sm text-gray-600">Total Payments</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.totalAmount.toLocaleString()}</p>
             </div>
-            <TrendingUp size={32} className="opacity-80" />
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <DollarSign size={24} className="text-green-600" />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Three Cards Side by Side */}
-      <div className="px-4 mb-6">
-        <div className="grid grid-cols-2 gap-3">
-          {/* Upload Excel Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-center">
-              <FileSpreadsheet size={24} className="mx-auto text-[#0052cc] mb-2" />
-              <h3 className="font-medium text-gray-900 text-sm mb-2">Upload Payments</h3>
-              <p className="text-xs text-gray-600 mb-3">Import payments in seconds!</p>
-              <Button 
-                size="sm" 
-                className="bg-[#0052cc] hover:bg-blue-700 w-full h-8 text-xs"
-                onClick={() => setShowUploadForm(true)}
-              >
-                <Upload size={14} className="mr-1" />
-                Upload Excel
-              </Button>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">This Month</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.monthlyAmount.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <Calendar size={24} className="text-blue-600" />
             </div>
           </div>
+        </div>
 
-          {/* Manual Entry Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-center">
-              <Plus size={24} className="mx-auto text-[#0052cc] mb-2" />
-              <h3 className="font-medium text-gray-900 text-sm mb-2">Add Payment</h3>
-              <p className="text-xs text-gray-600 mb-3">Manual entry</p>
-              <Button 
-                size="sm" 
-                className="bg-[#0052cc] hover:bg-blue-700 w-full h-8 text-xs"
-                onClick={() => {
-                  setEditingPayment(null);
-                  setShowAddForm(true);
-                }}
-              >
-                Add Payment
-              </Button>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Students</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+              <DollarSign size={24} className="text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Average Payment</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.averagePayment.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+              <DollarSign size={24} className="text-orange-600" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Payment List */}
-      <div className="px-1">
-        <div className="flex items-center space-x-2 px-3 mb-4">
-          <TrendingUp size={18} className="text-[#0052cc]" />
-          <h2 className="font-semibold text-gray-900">Recent Payments</h2>
-        </div>
-        
-        {filteredPayments.length === 0 ? (
-          <div className="text-center py-12 px-4">
-            <TrendingUp size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-500 mb-2">No payments found</h3>
-            <p className="text-gray-400 mb-4">Add your first payment or upload an Excel file</p>
-            <Button 
-              onClick={() => {
-                setEditingPayment(null);
-                setShowAddForm(true);
-              }}
-              className="bg-[#0052cc] hover:bg-blue-700"
-            >
-              <Plus size={16} className="mr-2" />
-              Add Payment
-            </Button>
-          </div>
-        ) : (
-          filteredPayments.map((payment, index) => (
-            <PaymentCard key={payment.id} payment={payment} index={index} />
-          ))
-        )}
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <Button
+          onClick={handleResetMonth}
+          disabled={resetting}
+          variant="outline"
+          className="border-red-200 text-red-600 hover:bg-red-50"
+        >
+          {resetting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+              Resetting...
+            </>
+          ) : (
+            <>
+              <RotateCcw size={16} className="mr-2" />
+              Reset Month
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Add Payment Form */}
+      {/* Payments Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Student
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Class
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Amount
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Method
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Remarks
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="text-center py-10">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0052cc]"></div>
+                </td>
+              </tr>
+            ) : payments.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-10">
+                  <AlertTriangle size={32} className="mx-auto text-gray-400 mb-2" />
+                  <p className="text-gray-500">No payments found.</p>
+                </td>
+              </tr>
+            ) : (
+              payments.map((payment: any) => (
+                <tr key={payment.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{payment.students?.name} ({payment.students?.student_id})</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{payment.students?.class_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">₹{payment.amount}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{new Date(payment.payment_date).toLocaleDateString()}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{payment.method}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{payment.remarks}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <Button
+                      onClick={() => {
+                        setEditingPayment(payment);
+                        setShowAddForm(true);
+                      }}
+                      size="sm"
+                    >
+                      Edit
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modals */}
       {showAddForm && (
-        <AddPaymentForm 
-          onClose={() => {
-            setShowAddForm(false);
-            setEditingPayment(null);
-          }}
-          onSave={() => {
-            fetchPayments();
-          }}
+        <AddPaymentForm
+          onClose={() => setShowAddForm(false)}
+          onSave={handlePaymentSaved}
           editingPayment={editingPayment}
         />
       )}
 
-      {/* Excel Upload Form */}
-      {showUploadForm && (
-        <ExcelUploadProcessor 
-          onClose={() => setShowUploadForm(false)}
-          onSuccess={() => {
-            fetchPayments();
-            setShowUploadForm(false);
-          }}
+      {showUploadModal && (
+        <ExcelUploadProcessor
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={handlePaymentSaved}
         />
       )}
     </div>

@@ -73,16 +73,31 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
       const mockData = [
         { studentId: 'STU001', amount: 1500, date: '2024-01-15', upiRefNo: 'UPI123456789' },
         { studentId: 'STU002', amount: 1200, date: '2024-01-15', upiRefNo: 'UPI987654321' },
+        { studentId: 'STU003', amount: 1000, date: '2024-01-15', upiRefNo: 'UPI123456789' }, // Duplicate UPI Ref
         { studentId: 'STU999', amount: 1000, date: '2024-01-15', upiRefNo: 'UPI555666777' }, // This will fail - student doesn't exist
       ];
 
       let processedCount = 0;
       let failedCount = 0;
+      let skippedCount = 0;
       const errors = [];
 
       for (let i = 0; i < mockData.length; i++) {
         const row = mockData[i];
         try {
+          // Check if UPI Ref No already exists in payments table
+          const { data: existingPayment, error: checkError } = await supabase
+            .from('payments')
+            .select('id')
+            .eq('transaction_ref', row.upiRefNo)
+            .single();
+
+          if (existingPayment) {
+            skippedCount++;
+            console.log(`Skipping row ${i + 2}: UPI Ref No ${row.upiRefNo} already exists`);
+            continue;
+          }
+
           // Find student by student_id
           const { data: student, error: studentError } = await supabase
             .from('students')
@@ -163,13 +178,14 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
         total: mockData.length,
         processed: processedCount,
         failed: failedCount,
+        skipped: skippedCount,
         errors: errors
       });
 
       if (processedCount > 0) {
         toast({
           title: "Upload completed",
-          description: `${processedCount} payments processed successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+          description: `${processedCount} payments processed${skippedCount > 0 ? `, ${skippedCount} skipped (duplicates)` : ''}${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
         });
         onSuccess();
       }
@@ -304,7 +320,7 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
                 <h3 className="font-semibold text-lg">Upload Complete</h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <div className="font-bold text-blue-600">{uploadResult.total}</div>
                   <div className="text-xs text-gray-600">Total</div>
@@ -312,6 +328,10 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
                 <div className="p-3 bg-green-50 rounded-lg">
                   <div className="font-bold text-green-600">{uploadResult.processed}</div>
                   <div className="text-xs text-gray-600">Processed</div>
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <div className="font-bold text-yellow-600">{uploadResult.skipped || 0}</div>
+                  <div className="text-xs text-gray-600">Skipped</div>
                 </div>
                 <div className="p-3 bg-red-50 rounded-lg">
                   <div className="font-bold text-red-600">{uploadResult.failed}</div>
