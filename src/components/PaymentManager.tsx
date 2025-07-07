@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, Download, RotateCcw, FileSpreadsheet, Calendar, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast, toast } from '@/components/ui/use-toast';
 import AddPaymentForm from './AddPaymentForm';
 import ExcelUploadProcessor from './ExcelUploadProcessor';
 
