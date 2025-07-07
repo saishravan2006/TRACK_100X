@@ -1,51 +1,27 @@
 
 import React, { useState } from 'react';
-import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Download } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import * as XLSX from 'xlsx';
 
 interface ExcelUploadProcessorProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onComplete: () => void;
 }
 
-const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, onSuccess }) => {
+const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, onComplete }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [uploadResult, setUploadResult] = useState<any>(null);
-  const [dragOver, setDragOver] = useState(false);
+  const [results, setResults] = useState<any>(null);
   const { toast } = useToast();
 
-  const handleFileSelect = (selectedFile: File) => {
-    if (selectedFile && (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls') || selectedFile.name.endsWith('.csv'))) {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
       setFile(selectedFile);
-      setUploadResult(null);
-    } else {
-      toast({
-        title: "Invalid file type",
-        description: "Please select an Excel (.xlsx, .xls) or CSV file",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = () => {
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
+      setResults(null);
     }
   };
 
@@ -54,147 +30,113 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
 
     setProcessing(true);
     try {
-      // Create upload record
-      const { data: uploadRecord, error: uploadError } = await supabase
-        .from('payment_uploads')
-        .insert({
-          file_name: file.name,
-          status: 'PROCESSING',
-          total_records: 0,
-          processed_records: 0,
-          failed_records: 0
-        })
-        .select()
-        .single();
+      // Read Excel file
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
 
-      if (uploadError) throw uploadError;
+      console.log('Excel data:', data);
 
-      // Updated mock data with UPI Ref No column
-      const mockData = [
-        { studentId: 'STU001', amount: 1500, date: '2024-01-15', upiRefNo: 'UPI123456789' },
-        { studentId: 'STU002', amount: 1200, date: '2024-01-15', upiRefNo: 'UPI987654321' },
-        { studentId: 'STU003', amount: 1000, date: '2024-01-15', upiRefNo: 'UPI123456789' }, // Duplicate UPI Ref
-        { studentId: 'STU999', amount: 1000, date: '2024-01-15', upiRefNo: 'UPI555666777' }, // This will fail - student doesn't exist
-      ];
+      // Get all students from database
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('id, student_id, name');
 
-      let processedCount = 0;
-      let failedCount = 0;
-      let skippedCount = 0;
-      const errors = [];
+      if (studentsError) throw studentsError;
 
-      for (let i = 0; i < mockData.length; i++) {
-        const row = mockData[i];
+      // Get existing transaction references to check for duplicates
+      const { data: existingPayments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('transaction_ref')
+        .not('transaction_ref', 'is', null);
+
+      if (paymentsError) throw paymentsError;
+
+      const existingTransactionRefs = new Set(
+        existingPayments.map(p => p.transaction_ref).filter(ref => ref)
+      );
+
+      let processed = 0;
+      let skipped = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      // Process each row
+      for (const row of data as any[]) {
         try {
-          // Check if UPI Ref No already exists in payments table
-          const { data: existingPayment, error: checkError } = await supabase
-            .from('payments')
-            .select('id')
-            .eq('transaction_ref', row.upiRefNo)
-            .single();
+          // Extract data from row (adjust column names as needed)
+          const studentName = row['Student Name'] || row['Name'] || row['student_name'];
+          const amount = parseFloat(row['Amount'] || row['amount'] || '0');
+          const upiRef = row['UPI Ref no.'] || row['UPI Ref'] || row['upi_ref'] || row['transaction_ref'];
+          const paymentDate = row['Date'] || row['Payment Date'] || row['payment_date'] || new Date().toISOString().split('T')[0];
 
-          if (existingPayment) {
-            skippedCount++;
-            console.log(`Skipping row ${i + 2}: UPI Ref No ${row.upiRefNo} already exists`);
+          // Skip if UPI Ref already exists
+          if (upiRef && existingTransactionRefs.has(upiRef)) {
+            skipped++;
+            console.log(`Skipping duplicate transaction: ${upiRef}`);
             continue;
           }
 
-          // Find student by student_id
-          const { data: student, error: studentError } = await supabase
-            .from('students')
-            .select('id')
-            .eq('student_id', row.studentId)
-            .single();
+          // Find student by name or student ID
+          const student = students.find(s => 
+            s.name.toLowerCase().includes(studentName?.toLowerCase() || '') ||
+            s.student_id === studentName
+          );
 
-          if (studentError || !student) {
-            failedCount++;
-            errors.push({
-              row_number: i + 2,
-              student_reference: row.studentId,
-              error_type: 'STUDENT_NOT_FOUND',
-              error_message: `Student with ID ${row.studentId} not found`,
-              raw_data: row
-            });
+          if (!student) {
+            failed++;
+            errors.push(`Student not found: ${studentName}`);
             continue;
           }
 
-          // Insert payment with UPI Ref No as transaction reference
-          const { error: paymentError } = await supabase
+          // Insert payment
+          const { error: insertError } = await supabase
             .from('payments')
             .insert({
               student_id: student.id,
-              amount: row.amount,
-              payment_date: row.date,
+              amount: amount,
+              payment_date: paymentDate,
               method: 'Excel Upload',
-              transaction_ref: row.upiRefNo // Using UPI Ref No as transaction reference
+              transaction_ref: upiRef,
+              remarks: `Uploaded from ${file.name}`
             });
 
-          if (paymentError) {
-            failedCount++;
-            errors.push({
-              row_number: i + 2,
-              student_reference: row.studentId,
-              error_type: 'PAYMENT_INSERT_FAILED',
-              error_message: paymentError.message,
-              raw_data: row
-            });
+          if (insertError) {
+            failed++;
+            errors.push(`Failed to insert payment for ${studentName}: ${insertError.message}`);
           } else {
-            processedCount++;
+            processed++;
+            // Add to existing refs set to prevent duplicates within the same upload
+            if (upiRef) {
+              existingTransactionRefs.add(upiRef);
+            }
           }
         } catch (error) {
-          failedCount++;
-          errors.push({
-            row_number: i + 2,
-            student_reference: row.studentId,
-            error_type: 'UNKNOWN_ERROR',
-            error_message: error instanceof Error ? error.message : 'Unknown error',
-            raw_data: row
-          });
+          failed++;
+          errors.push(`Error processing row: ${error}`);
         }
       }
 
-      // Insert errors if any
-      if (errors.length > 0) {
-        await supabase
-          .from('payment_errors')
-          .insert(errors.map(error => ({
-            ...error,
-            upload_id: uploadRecord.id
-          })));
-      }
-
-      // Update upload record
-      await supabase
-        .from('payment_uploads')
-        .update({
-          status: failedCount === mockData.length ? 'FAILED' : 'COMPLETED',
-          total_records: mockData.length,
-          processed_records: processedCount,
-          failed_records: failedCount,
-          error_log: errors.length > 0 ? errors : null
-        })
-        .eq('id', uploadRecord.id);
-
-      setUploadResult({
-        total: mockData.length,
-        processed: processedCount,
-        failed: failedCount,
-        skipped: skippedCount,
-        errors: errors
+      setResults({
+        total: data.length,
+        processed,
+        skipped,
+        failed,
+        errors
       });
 
-      if (processedCount > 0) {
-        toast({
-          title: "Upload completed",
-          description: `${processedCount} payments processed${skippedCount > 0 ? `, ${skippedCount} skipped (duplicates)` : ''}${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
-        });
-        onSuccess();
-      }
+      toast({
+        title: "Upload Complete",
+        description: `Processed: ${processed}, Skipped: ${skipped}, Failed: ${failed}`,
+      });
 
     } catch (error) {
-      console.error('Processing error:', error);
+      console.error('Error processing file:', error);
       toast({
-        title: "Processing failed",
-        description: "Failed to process the Excel file",
+        title: "Error",
+        description: "Failed to process Excel file",
         variant: "destructive",
       });
     } finally {
@@ -202,27 +144,13 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
     }
   };
 
-  const downloadTemplate = () => {
-    // Updated CSV template with UPI Ref No column
-    const csvContent = "Student ID,Amount,Date,UPI Ref No\nSTU001,1500,2024-01-15,UPI123456789\nSTU002,1200,2024-01-15,UPI987654321";
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'payment_template.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl mx-4">
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black bg-opacity-50 animate-fade-in">
+      <div className="w-full max-w-md bg-white rounded-t-2xl shadow-xl animate-slide-in-bottom pb-safe-area-pb">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
               <FileSpreadsheet size={16} className="text-white" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900">Upload Payments</h2>
@@ -235,128 +163,116 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
           </button>
         </div>
 
+        {/* Content */}
         <div className="p-4">
-          {!uploadResult ? (
-            <>
-              {/* File Drop Zone */}
-              <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                  dragOver ? 'border-green-500 bg-green-50' : 'border-gray-300'
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                <Upload size={32} className="mx-auto text-gray-400 mb-2" />
-                <p className="text-gray-600 mb-2">Drop your Excel file here or</p>
-                <Button
-                  variant="outline"
-                  onClick={() => document.getElementById('excel-upload')?.click()}
-                  className="mb-2"
-                >
-                  Choose File
-                </Button>
+          {!results ? (
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <Upload size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 mb-4">Select Excel file with payment data</p>
                 <input
-                  id="excel-upload"
                   type="file"
                   accept=".xlsx,.xls,.csv"
-                  onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                  onChange={handleFileChange}
                   className="hidden"
+                  id="excel-upload"
                 />
-                <p className="text-xs text-gray-500">Supports .xlsx, .xls, .csv files</p>
-                <p className="text-xs text-blue-600 mt-1">Include UPI Ref No column for transaction reference</p>
+                <label
+                  htmlFor="excel-upload"
+                  className="cursor-pointer bg-[#0052cc] text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Choose File
+                </label>
               </div>
 
               {file && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <FileSpreadsheet size={16} className="text-green-600" />
-                    <span className="text-sm font-medium">{file.name}</span>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    Selected: <span className="font-medium">{file.name}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Expected columns: Student Name, Amount, UPI Ref no., Date
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle size={16} className="text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium mb-1">Duplicate Detection</p>
+                    <p>Payments with existing UPI Ref numbers will be automatically skipped.</p>
                   </div>
                 </div>
-              )}
-
-              {/* Template Download */}
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-2">Need a template?</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadTemplate}
-                  className="text-blue-600 border-blue-200 hover:bg-blue-100"
-                >
-                  <Download size={14} className="mr-1" />
-                  Download Template
-                </Button>
               </div>
-
-              {/* Action Buttons */}
-              <div className="mt-6 flex space-x-3">
-                <Button
-                  onClick={onClose}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={processExcelFile}
-                  disabled={!file || processing}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  {processing ? 'Processing...' : 'Process File'}
-                </Button>
-              </div>
-            </>
-          ) : (
-            /* Results */
-            <div className="space-y-4">
-              <div className="text-center">
-                {uploadResult.failed === 0 ? (
-                  <CheckCircle size={48} className="mx-auto text-green-500 mb-2" />
-                ) : (
-                  <AlertCircle size={48} className="mx-auto text-yellow-500 mb-2" />
-                )}
-                <h3 className="font-semibold text-lg">Upload Complete</h3>
-              </div>
-
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="font-bold text-blue-600">{uploadResult.total}</div>
-                  <div className="text-xs text-gray-600">Total</div>
-                </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <div className="font-bold text-green-600">{uploadResult.processed}</div>
-                  <div className="text-xs text-gray-600">Processed</div>
-                </div>
-                <div className="p-3 bg-yellow-50 rounded-lg">
-                  <div className="font-bold text-yellow-600">{uploadResult.skipped || 0}</div>
-                  <div className="text-xs text-gray-600">Skipped</div>
-                </div>
-                <div className="p-3 bg-red-50 rounded-lg">
-                  <div className="font-bold text-red-600">{uploadResult.failed}</div>
-                  <div className="text-xs text-gray-600">Failed</div>
-                </div>
-              </div>
-
-              {uploadResult.errors && uploadResult.errors.length > 0 && (
-                <div className="max-h-32 overflow-y-auto">
-                  <h4 className="font-medium text-sm mb-2">Errors:</h4>
-                  {uploadResult.errors.map((error: any, index: number) => (
-                    <div key={index} className="text-xs bg-red-50 p-2 rounded mb-1">
-                      Row {error.row_number}: {error.error_message}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Button
-                onClick={onClose}
-                className="w-full bg-[#0052cc] hover:bg-blue-700"
-              >
-                Done
-              </Button>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <CheckCircle size={20} className="text-green-600" />
+                  <h3 className="font-semibold text-green-800">Upload Results</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Total Records:</span>
+                    <span className="font-medium ml-2">{results.total}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Processed:</span>
+                    <span className="font-medium ml-2 text-green-600">{results.processed}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Skipped:</span>
+                    <span className="font-medium ml-2 text-yellow-600">{results.skipped}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Failed:</span>
+                    <span className="font-medium ml-2 text-red-600">{results.failed}</span>
+                  </div>
+                </div>
+              </div>
+
+              {results.errors.length > 0 && (
+                <div className="bg-red-50 p-4 rounded-lg max-h-32 overflow-y-auto">
+                  <h4 className="font-medium text-red-800 mb-2">Errors:</h4>
+                  <ul className="text-sm text-red-700 space-y-1">
+                    {results.errors.map((error: string, index: number) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="p-4 border-t border-gray-200 flex space-x-3 bg-white">
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="flex-1 h-12 border-gray-300 hover:bg-gray-50"
+            disabled={processing}
+          >
+            {results ? 'Close' : 'Cancel'}
+          </Button>
+          {!results && (
+            <Button
+              onClick={processExcelFile}
+              disabled={!file || processing}
+              className="flex-1 h-12 bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white"
+            >
+              {processing ? 'Processing...' : 'Upload'}
+            </Button>
+          )}
+          {results && (
+            <Button
+              onClick={onComplete}
+              className="flex-1 h-12 bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white"
+            >
+              Done
+            </Button>
           )}
         </div>
       </div>

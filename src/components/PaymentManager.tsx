@@ -1,457 +1,414 @@
+
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Plus, Search, RotateCcw, FileSpreadsheet, Calendar, AlertTriangle, Users, Clock, TrendingUp } from 'lucide-react';
+import { Search, CreditCard, Upload, FileSpreadsheet, DollarSign, Filter, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast, toast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import AddPaymentForm from './AddPaymentForm';
 import ExcelUploadProcessor from './ExcelUploadProcessor';
 
-const PaymentManager = () => {
-  const [payments, setPayments] = useState([]);
-  const [filteredPayments, setFilteredPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [editingPayment, setEditingPayment] = useState(null);
+const PaymentManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [studentStats, setStudentStats] = useState({
-    paid: 0,
-    pending: 0,
-    excess: 0
-  });
-  const [stats, setStats] = useState({
-    totalAmount: 0,
-    monthlyAmount: 0,
-    totalStudents: 0,
-    averagePayment: 0,
-  });
-  const [resetting, setResetting] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [payments, setPayments] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    fetchPayments();
-    fetchStats();
-    fetchStudentStats();
-  }, []);
-
-  useEffect(() => {
-    // Filter payments based on search term and status filter
-    let filtered = payments;
-    
-    if (searchTerm.trim() !== '') {
-      filtered = filtered.filter(payment => 
-        payment.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.students?.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.amount.toString().includes(searchTerm) ||
-        payment.method.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    if (statusFilter !== 'all') {
-      // Filter by status based on student balance status
-      filtered = filtered.filter(payment => {
-        // This would need to be implemented based on your status logic
-        return true; // Placeholder for now
-      });
-    }
-    
-    setFilteredPayments(filtered);
-  }, [searchTerm, statusFilter, payments]);
-
+  // Fetch payments and students
   const fetchPayments = async () => {
-    setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select('*, students(name, class_name, student_id)')
+        .select(`
+          *,
+          students (
+            name,
+            student_id,
+            class_name
+          )
+        `)
         .order('payment_date', { ascending: false });
 
-      if (error) throw error;
-      setPayments(data || []);
-      setFilteredPayments(data || []);
+      if (paymentsError) throw paymentsError;
+
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('*')
+        .order('name');
+
+      if (studentsError) throw studentsError;
+
+      setPayments(paymentsData || []);
+      setStudents(studentsData || []);
     } catch (error) {
-      console.error('Error fetching payments:', error);
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const { data, error } = await supabase.from('payments').select('*');
-      if (error) throw error;
+  useEffect(() => {
+    fetchPayments();
+  }, []);
 
-      const totalAmount = data?.reduce((acc, payment) => acc + payment.amount, 0) || 0;
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth();
-      const currentYear = currentDate.getFullYear();
+  const filteredPayments = payments.filter(payment => {
+    const matchesSearch = payment.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         payment.students?.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         payment.amount.toString().includes(searchTerm);
+    const matchesFilter = filterStatus === 'all' || payment.method === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
 
-      const monthlyAmount = data?.filter(payment => {
-        const paymentDate = new Date(payment.payment_date);
-        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
-      }).reduce((acc, payment) => acc + payment.amount, 0) || 0;
-
-      const { data: studentsData, error: studentsError } = await supabase.from('students').select('*');
-      if (studentsError) throw studentsError;
-
-      const totalStudents = studentsData?.length || 0;
-      const averagePayment = totalAmount / totalStudents || 0;
-
-      setStats({
-        totalAmount,
-        monthlyAmount,
-        totalStudents,
-        averagePayment,
-      });
-
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
+  const stats = {
+    paid: payments.filter(p => p.method === 'Excel Upload' || p.method === 'Manual Entry').length,
+    pending: payments.filter(p => p.method === 'Cash').length,
+    excess: payments.filter(p => p.amount > 1000).length // Example logic
   };
 
-  const fetchStudentStats = async () => {
+  const handleSavePayment = async (paymentData: any) => {
     try {
-      const { data, error } = await supabase
-        .from('student_balances')
-        .select('status');
+      const { error } = await supabase
+        .from('payments')
+        .insert({
+          student_id: paymentData.studentId,
+          amount: paymentData.amount,
+          payment_date: paymentData.date,
+          method: paymentData.method,
+          remarks: paymentData.remarks,
+          transaction_ref: paymentData.transactionRef
+        });
 
       if (error) throw error;
 
-      const stats = data?.reduce((acc, balance) => {
-        if (balance.status === 'paid') acc.paid++;
-        else if (balance.status === 'pending') acc.pending++;
-        else if (balance.status === 'excess') acc.excess++;
-        return acc;
-      }, { paid: 0, pending: 0, excess: 0 }) || { paid: 0, pending: 0, excess: 0 };
-
-      setStudentStats(stats);
-    } catch (error) {
-      console.error('Error fetching student stats:', error);
-    }
-  };
-
-  const handleStatusFilter = (status) => {
-    setStatusFilter(status);
-  };
-
-  const handleResetConfirm = () => {
-    setShowResetConfirm(true);
-  };
-
-  const handleResetMonth = async () => {
-    if (!window.confirm('Reset all payments? This action cannot be undone.')) {
-      return;
-    }
-
-    setResetting(true);
-    try {
-      // Instead of calling the function directly, perform the operations manually
-      // This avoids the permission issue with calling database functions
-      
-      // First, get current month and year
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
-      const currentYear = currentDate.getFullYear();
-
-      // Archive current month's payments
-      const { data: paymentsToArchive, error: fetchError } = await supabase
-        .from('payments')
-        .select('*')
-        .gte('payment_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('payment_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
-
-      if (fetchError) throw fetchError;
-
-      console.log(`Archiving ${paymentsToArchive?.length || 0} payments for ${currentMonth}/${currentYear}`);
-
-      // Delete current month's payments
-      const { error: deletePaymentsError } = await supabase
-        .from('payments')
-        .delete()
-        .gte('payment_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('payment_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
-
-      if (deletePaymentsError) throw deletePaymentsError;
-
-      // Get all student balances to update them
-      const { data: studentBalances, error: balanceError } = await supabase
-        .from('student_balances')
-        .select('*');
-
-      if (balanceError) throw balanceError;
-
-      // Update each student balance based on their status
-      for (const balance of studentBalances || []) {
-        let newBalance;
-        
-        if (balance.status === 'paid') {
-          newBalance = 0;
-        } else if (balance.status === 'pending') {
-          newBalance = balance.current_balance + balance.total_fees;
-        } else if (balance.status === 'excess') {
-          newBalance = balance.current_balance + balance.total_fees;
-        } else {
-          newBalance = balance.total_fees;
-        }
-
-        const { error: updateError } = await supabase
-          .from('student_balances')
-          .update({
-            current_balance: newBalance,
-            total_paid: 0.00,
-            last_payment_date: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', balance.id);
-
-        if (updateError) {
-          console.error('Error updating balance for student:', balance.student_id, updateError);
-        }
-      }
-
-      // Clear upload records for current month
-      const { error: deleteUploadsError } = await supabase
-        .from('payment_uploads')
-        .delete()
-        .gte('upload_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('upload_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
-
-      if (deleteUploadsError) {
-        console.error('Error deleting uploads:', deleteUploadsError);
-      }
-
-      // Clear error records for current month
-      const { error: deleteErrorsError } = await supabase
-        .from('payment_errors')
-        .delete()
-        .gte('created_at', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('created_at', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
-
-      if (deleteErrorsError) {
-        console.error('Error deleting errors:', deleteErrorsError);
-      }
-
+      await fetchPayments();
+      setShowAddForm(false);
       toast({
         title: "Success",
-        description: "Monthly data has been reset successfully",
+        description: "Payment added successfully",
       });
-
-      // Refresh the data
-      fetchPayments();
-      fetchStats();
-      fetchStudentStats();
-
     } catch (error) {
-      console.error('Error resetting month:', error);
+      console.error('Error saving payment:', error);
       toast({
         title: "Error",
-        description: "Failed to reset monthly data. Please try again.",
+        description: "Failed to save payment",
         variant: "destructive",
       });
-    } finally {
-      setResetting(false);
-      setShowResetConfirm(false);
     }
   };
 
-  const handlePaymentSaved = () => {
-    fetchPayments();
-    fetchStats();
-    fetchStudentStats();
+  const handleUpdatePayment = async (paymentId: string, updatedData: any) => {
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .update(updatedData)
+        .eq('id', paymentId);
+
+      if (error) throw error;
+
+      await fetchPayments();
+      setEditingPayment(null);
+      toast({
+        title: "Success",
+        description: "Payment updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update payment",
+        variant: "destructive",
+      });
+    }
   };
 
+  const handleDeletePayment = async (paymentId: string) => {
+    if (window.confirm('Are you sure you want to delete this payment?')) {
+      try {
+        const { error } = await supabase
+          .from('payments')
+          .delete()
+          .eq('id', paymentId);
+
+        if (error) throw error;
+
+        await fetchPayments();
+        toast({
+          title: "Success",
+          description: "Payment deleted successfully",
+        });
+      } catch (error) {
+        console.error('Error deleting payment:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete payment",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleMonthlyReset = async () => {
+    try {
+      const { error } = await supabase.rpc('reset_monthly_data');
+      if (error) throw error;
+
+      await fetchPayments();
+      setShowResetConfirm(false);
+      toast({
+        title: "Success",
+        description: "Monthly data reset successfully",
+      });
+    } catch (error) {
+      console.error('Error resetting monthly data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reset monthly data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const EditablePaymentRow = ({ payment }: any) => {
+    const [editData, setEditData] = useState({
+      amount: payment.amount,
+      payment_date: payment.payment_date,
+      method: payment.method,
+      remarks: payment.remarks || '',
+      transaction_ref: payment.transaction_ref || ''
+    });
+
+    return (
+      <tr className="border-b border-gray-100">
+        <td className="py-3 px-2 text-sm">{payment.students?.name}</td>
+        <td className="py-3 px-2">
+          <Input
+            type="number"
+            value={editData.amount}
+            onChange={(e) => setEditData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+            className="h-8 text-sm"
+          />
+        </td>
+        <td className="py-3 px-2">
+          <Input
+            type="date"
+            value={editData.payment_date}
+            onChange={(e) => setEditData(prev => ({ ...prev, payment_date: e.target.value }))}
+            className="h-8 text-sm"
+          />
+        </td>
+        <td className="py-3 px-2">
+          <select
+            value={editData.method}
+            onChange={(e) => setEditData(prev => ({ ...prev, method: e.target.value }))}
+            className="h-8 text-sm border border-gray-300 rounded px-2"
+          >
+            <option value="Excel Upload">Excel Upload</option>
+            <option value="Manual Entry">Manual Entry</option>
+            <option value="Cash">Cash</option>
+            <option value="Online">Online</option>
+          </select>
+        </td>
+        <td className="py-3 px-2">
+          <Input
+            value={editData.transaction_ref}
+            onChange={(e) => setEditData(prev => ({ ...prev, transaction_ref: e.target.value }))}
+            placeholder="Transaction Ref"
+            className="h-8 text-sm"
+          />
+        </td>
+        <td className="py-3 px-2">
+          <div className="flex space-x-1">
+            <Button
+              size="sm"
+              onClick={() => handleUpdatePayment(payment.id, editData)}
+              className="h-6 w-6 p-0"
+            >
+              <Save size={12} />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEditingPayment(null)}
+              className="h-6 w-6 p-0"
+            >
+              <X size={12} />
+            </Button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  const PaymentRow = ({ payment }: any) => (
+    <tr className="border-b border-gray-100 hover:bg-gray-50">
+      <td className="py-3 px-2 text-sm font-medium">{payment.students?.name}</td>
+      <td className="py-3 px-2 text-sm">₹{payment.amount}</td>
+      <td className="py-3 px-2 text-sm">{new Date(payment.payment_date).toLocaleDateString()}</td>
+      <td className="py-3 px-2 text-sm">{payment.method}</td>
+      <td className="py-3 px-2 text-sm">{payment.transaction_ref || '-'}</td>
+      <td className="py-3 px-2">
+        <div className="flex space-x-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditingPayment(payment.id)}
+            className="h-6 w-6 p-0"
+          >
+            <Edit size={12} />
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => handleDeletePayment(payment.id)}
+            className="h-6 w-6 p-0"
+          >
+            <Trash2 size={12} />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+
+  if (loading) {
+    return (
+      <div className="pb-20 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0052cc] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading payments...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Header Section */}
-      <div className="text-center pt-4 pb-4 px-4">
+    <div className="pb-20 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm text-center">
         <h1 className="text-2xl font-bold text-[#0052cc] mb-2">Payments</h1>
-        <p className="text-base text-gray-600">Track and manage student payments</p>
+        <p className="text-gray-600 text-sm">Track and manage student payments</p>
       </div>
 
-      {/* Status Cards Section */}
-      <div className="px-4 mb-6">
-        <div className="grid grid-cols-3 gap-1 mb-4">
-          <Card 
-            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
-            onClick={() => handleStatusFilter('paid')}
+      {/* Status Cards */}
+      <div className="p-4">
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div 
+            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
+            onClick={() => setFilterStatus('Excel Upload')}
           >
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold mb-1">{studentStats.paid}</div>
-              <div className="text-sm">Paid Students</div>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
-            onClick={() => handleStatusFilter('pending')}
+            <div className="text-xl font-bold">{stats.paid}</div>
+            <div className="text-xs text-blue-100">Paid Students</div>
+          </div>
+          <div 
+            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
+            onClick={() => setFilterStatus('Cash')}
           >
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold mb-1">{studentStats.pending}</div>
-              <div className="text-sm">Pending Students</div>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
-            onClick={() => handleStatusFilter('excess')}
+            <div className="text-xl font-bold">{stats.pending}</div>
+            <div className="text-xs text-blue-100">Pending Students</div>
+          </div>
+          <div 
+            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
+            onClick={() => setFilterStatus('all')}
           >
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold mb-1">{studentStats.excess}</div>
-              <div className="text-sm">Excess Students</div>
-            </CardContent>
-          </Card>
+            <div className="text-xl font-bold">{stats.excess}</div>
+            <div className="text-xs text-blue-100">Excess Students</div>
+          </div>
         </div>
 
         {/* Action Cards */}
-        <div className="grid grid-cols-2 gap-1">
-          <Card 
-            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
-            onClick={() => setShowUploadModal(true)}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div 
+            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-4 cursor-pointer hover:shadow-md transition-all"
+            onClick={() => setShowUploadForm(true)}
           >
-            <CardContent className="p-4 text-center">
-              <FileSpreadsheet size={24} className="mx-auto mb-2" />
-              <Button 
-                size="sm" 
-                className="bg-white text-[#0052cc] hover:bg-gray-100 mb-2 w-full"
-              >
-                Upload Payments
-              </Button>
-              <div className="text-xs">Import payments in seconds!</div>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
+            <div className="flex items-center justify-center mb-2">
+              <Upload size={24} />
+            </div>
+            <Button className="w-full mb-2 bg-white text-[#0052cc] hover:bg-gray-100">
+              Upload Payments
+            </Button>
+            <p className="text-xs text-blue-100 text-center">Import payments in seconds!</p>
+          </div>
+          <div 
+            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-4 cursor-pointer hover:shadow-md transition-all"
             onClick={() => setShowAddForm(true)}
           >
-            <CardContent className="p-4 text-center">
-              <Plus size={24} className="mx-auto mb-2" />
-              <Button 
-                size="sm" 
-                className="bg-white text-[#0052cc] hover:bg-gray-100 mb-2 w-full"
-              >
-                Add Payment
-              </Button>
-              <div className="text-xs">Manual entry</div>
-            </CardContent>
-          </Card>
+            <div className="flex items-center justify-center mb-2">
+              <DollarSign size={24} />
+            </div>
+            <Button className="w-full mb-2 bg-white text-[#0052cc] hover:bg-gray-100">
+              Add Payment
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Table Section with Integrated Search */}
-      <div className="px-4">
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+      {/* Search Bar */}
+      <div className="px-4 mb-4">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
             placeholder="Filter payments..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border-gray-300"
+            className="pl-10 h-10 border-gray-200 focus:border-[#0052cc]"
           />
         </div>
-
-        {/* Payments Table */}
-        <Card className="mb-20">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-100 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
-                      Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
-                      Amount
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={4} className="text-center py-8">
-                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0052cc]"></div>
-                      </td>
-                    </tr>
-                  ) : filteredPayments.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="text-center py-8">
-                        <AlertTriangle size={24} className="mx-auto text-gray-400 mb-2" />
-                        <p className="text-gray-500 text-sm">
-                          {searchTerm ? 'No payments match your search.' : 'No payments found.'}
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredPayments.map((payment: any) => (
-                      <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900">{payment.students?.name}</div>
-                          <div className="text-xs text-gray-500">({payment.students?.student_id})</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {new Date(payment.payment_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          ₹{payment.amount}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Paid
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-4 flex flex-col gap-3">
-        {/* Monthly Reset FAB */}
-        <Button
-          onClick={handleResetConfirm}
-          disabled={resetting}
-          size="icon"
-          className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-lg animate-pulse"
-        >
-          {resetting ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          ) : (
-            <RotateCcw size={20} />
-          )}
-        </Button>
-
-        {/* Manual Entry FAB */}
-        <Button
-          onClick={() => setShowAddForm(true)}
-          size="icon"
-          className="w-12 h-12 rounded-full bg-[#0052cc] hover:bg-blue-700 text-white shadow-lg"
-        >
-          <Plus size={20} />
-        </Button>
+      {/* Payments Table */}
+      <div className="px-4">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                  <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase">Ref</th>
+                  <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPayments.map((payment) => (
+                  editingPayment === payment.id ? 
+                    <EditablePaymentRow key={payment.id} payment={payment} /> :
+                    <PaymentRow key={payment.id} payment={payment} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
+
+      {/* Floating Reset Button */}
+      <Button 
+        onClick={() => setShowResetConfirm(true)}
+        className="fixed bottom-20 right-4 w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 shadow-lg z-10 animate-pulse"
+      >
+        <RotateCcw size={20} />
+      </Button>
 
       {/* Reset Confirmation Modal */}
       {showResetConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Reset all payments?</h3>
-            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
-            <div className="flex gap-3">
+            <p className="text-gray-600 mb-6">This will reset all payment data for the current month. This action cannot be undone.</p>
+            <div className="flex space-x-3">
               <Button
                 onClick={() => setShowResetConfirm(false)}
                 variant="outline"
@@ -460,38 +417,34 @@ const PaymentManager = () => {
                 Cancel
               </Button>
               <Button
-                onClick={handleResetMonth}
+                onClick={handleMonthlyReset}
                 className="flex-1 bg-red-600 hover:bg-red-700"
-                disabled={resetting}
               >
-                {resetting ? 'Resetting...' : 'Confirm'}
+                Confirm
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modals */}
+      {/* Add Payment Form */}
       {showAddForm && (
-        <div className="animate-slide-in-right">
-          <AddPaymentForm
-            onClose={() => {
-              setShowAddForm(false);
-              setEditingPayment(null);
-            }}
-            onSave={handlePaymentSaved}
-            editingPayment={editingPayment}
-          />
-        </div>
+        <AddPaymentForm 
+          onClose={() => setShowAddForm(false)}
+          onSave={handleSavePayment}
+          students={students}
+        />
       )}
 
-      {showUploadModal && (
-        <div className="animate-slide-in-right">
-          <ExcelUploadProcessor
-            onClose={() => setShowUploadModal(false)}
-            onSuccess={handlePaymentSaved}
-          />
-        </div>
+      {/* Excel Upload Form */}
+      {showUploadForm && (
+        <ExcelUploadProcessor 
+          onClose={() => setShowUploadForm(false)}
+          onComplete={() => {
+            setShowUploadForm(false);
+            fetchPayments();
+          }}
+        />
       )}
     </div>
   );
