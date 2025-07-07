@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Search, CreditCard, Upload, FileSpreadsheet, DollarSign, Filter, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
+import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,14 +13,12 @@ const PaymentManager: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingPayment, setEditingPayment] = useState(null);
   const { toast } = useToast();
 
-  // Fetch payments and students
   const fetchPayments = async () => {
     try {
       const { data: paymentsData, error: paymentsError } = await supabase
