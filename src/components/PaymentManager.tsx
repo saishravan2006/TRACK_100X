@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -275,10 +276,19 @@ const PaymentManager: React.FC = () => {
 
   return (
     <div className="pb-20 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm text-center">
-        <h1 className="text-2xl font-bold text-[#0052cc] mb-2">Payments</h1>
-        <p className="text-gray-600 text-sm">Track and manage student payments</p>
+      {/* Header - Updated to match other pages */}
+      <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
+                <DollarSign size={16} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-black">Payment Manager</h1>
+            </div>
+            <p className="text-gray-600 text-sm pl-11">Track and manage student payments</p>
+          </div>
+        </div>
       </div>
 
       {/* Status Cards */}
@@ -412,7 +422,10 @@ const PaymentManager: React.FC = () => {
       {showAddForm && (
         <AddPaymentForm 
           onClose={() => setShowAddForm(false)}
-          onSave={handlePaymentSaved}
+          onSave={() => {
+            fetchPayments();
+            setShowAddForm(false);
+          }}
         />
       )}
 

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import BottomNavigation from '../components/BottomNavigation';
 import Dashboard from '../components/Dashboard';
 import StudentManagement from '../components/StudentManagement';
-import ClassSchedule from '../components/ClassSchedule';
+import CalendarView from '../components/CalendarView';
 import PaymentManager from '../components/PaymentManager';
 
 const Index = () => {
@@ -16,7 +16,7 @@ const Index = () => {
       case 'students':
         return <StudentManagement />;
       case 'schedule':
-        return <ClassSchedule />;
+        return <CalendarView />;
       case 'payments':
         return <PaymentManager />;
       default:

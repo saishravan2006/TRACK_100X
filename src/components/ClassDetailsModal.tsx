@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Clock, MapPin, Users, BookOpen } from 'lucide-react';
+import { X, Clock, MapPin, Users, BookOpen, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ClassDetailsModalProps {
   date: string;
   onClose: () => void;
+  onScheduleNew?: () => void;
 }
 
-const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose }) => {
+const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose, onScheduleNew }) => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -136,7 +137,16 @@ const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose }) 
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          {onScheduleNew && (
+            <Button
+              onClick={onScheduleNew}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Plus size={16} className="mr-2" />
+              Schedule New Class
+            </Button>
+          )}
           <Button
             onClick={onClose}
             className="w-full bg-[#0052cc] hover:bg-blue-700"
