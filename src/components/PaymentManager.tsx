@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X } from 'lucide-react';
+import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,8 +16,11 @@ const PaymentManager: React.FC = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
+  const [studentBalances, setStudentBalances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [selectedCard, setSelectedCard] = useState('all');
+  const [showStudentList, setShowStudentList] = useState(false);
   const { toast } = useToast();
 
   const fetchPayments = async () => {
@@ -29,7 +32,8 @@ const PaymentManager: React.FC = () => {
           students (
             name,
             student_id,
-            class_name
+            class_name,
+            phone
           )
         `)
         .order('payment_date', { ascending: false });
@@ -43,8 +47,23 @@ const PaymentManager: React.FC = () => {
 
       if (studentsError) throw studentsError;
 
+      const { data: balancesData, error: balancesError } = await supabase
+        .from('student_balances')
+        .select(`
+          *,
+          students (
+            name,
+            student_id,
+            phone
+          )
+        `)
+        .order('students(name)');
+
+      if (balancesError) throw balancesError;
+
       setPayments(paymentsData || []);
       setStudents(studentsData || []);
+      setStudentBalances(balancesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -70,9 +89,36 @@ const PaymentManager: React.FC = () => {
   });
 
   const stats = {
-    paid: payments.filter(p => p.method === 'Excel Upload' || p.method === 'Manual Entry').length,
-    pending: payments.filter(p => p.method === 'Cash').length,
-    excess: payments.filter(p => p.amount > 1000).length // Example logic
+    paid: studentBalances.filter(b => b.status === 'paid').length,
+    pending: studentBalances.filter(b => b.status === 'pending').length,
+    excess: studentBalances.filter(b => b.status === 'excess').length
+  };
+
+  const handleCardClick = (cardType: string) => {
+    setSelectedCard(cardType);
+    setShowStudentList(true);
+  };
+
+  const getFilteredStudentBalances = () => {
+    if (selectedCard === 'all') return studentBalances;
+    return studentBalances.filter(balance => balance.status === selectedCard);
+  };
+
+  const sendWhatsAppReminder = (student: any, amount: number) => {
+    const message = `Hello ${student.students.name}, this is a gentle reminder that you have a pending payment of ₹${amount} for your classes. Please make the payment at your earliest convenience. Thank you!`;
+    const phoneNumber = student.students.phone?.replace(/\D/g, ''); // Remove non-numeric characters
+    
+    if (!phoneNumber) {
+      toast({
+        title: "Error",
+        description: "Phone number not found for this student",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   const handlePaymentSaved = async () => {
@@ -148,7 +194,7 @@ const PaymentManager: React.FC = () => {
 
         if (balance.status === 'paid') {
           // Step 4: For paid status (current balance equals zero)
-          newCurrentBalance = 0;
+          newCurrentBalance = totalFees;
           newTotalPaid = 0;
         } else if (balance.status === 'pending') {
           // Step 5: For pending status (current balance is positive)
@@ -339,21 +385,21 @@ const PaymentManager: React.FC = () => {
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div 
             className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
-            onClick={() => setFilterStatus('Excel Upload')}
+            onClick={() => handleCardClick('paid')}
           >
             <div className="text-xl font-bold">{stats.paid}</div>
             <div className="text-xs text-blue-100">Paid Students</div>
           </div>
           <div 
             className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
-            onClick={() => setFilterStatus('Cash')}
+            onClick={() => handleCardClick('pending')}
           >
             <div className="text-xl font-bold">{stats.pending}</div>
             <div className="text-xs text-blue-100">Pending Students</div>
           </div>
           <div 
             className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
-            onClick={() => setFilterStatus('all')}
+            onClick={() => handleCardClick('excess')}
           >
             <div className="text-xl font-bold">{stats.excess}</div>
             <div className="text-xs text-blue-100">Excess Students</div>
@@ -481,6 +527,54 @@ const PaymentManager: React.FC = () => {
             fetchPayments();
           }}
         />
+      )}
+
+      {/* Student List Modal */}
+      {showStudentList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 m-4 max-w-md w-full max-h-96 overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                {selectedCard} Students
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStudentList(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+            <div className="overflow-y-auto max-h-64">
+              {getFilteredStudentBalances().map((balance) => (
+                <div key={balance.id} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{balance.students?.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {selectedCard === 'paid' && `Paid: ₹${balance.total_paid}`}
+                      {selectedCard === 'pending' && `Pending: ₹${balance.current_balance}`}
+                      {selectedCard === 'excess' && `Excess: ₹${Math.abs(balance.current_balance)}`}
+                    </p>
+                  </div>
+                  {selectedCard === 'pending' && (
+                    <Button
+                      size="sm"
+                      onClick={() => sendWhatsAppReminder(balance, balance.current_balance)}
+                      className="ml-3 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <MessageCircle size={14} className="mr-1" />
+                      Send Reminder
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {getFilteredStudentBalances().length === 0 && (
+                <p className="text-center text-gray-500 py-4">No {selectedCard} students found</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
