@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,37 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
       setFile(selectedFile);
       setResults(null);
     }
+  };
+
+  // Function to convert Excel date serial number to proper date format
+  const convertExcelDate = (excelDate: any): string => {
+    if (!excelDate) return new Date().toISOString().split('T')[0];
+    
+    // If it's already a string in DD/MM/YYYY format, convert it
+    if (typeof excelDate === 'string' && excelDate.includes('/')) {
+      const parts = excelDate.split('/');
+      if (parts.length === 3) {
+        // Convert DD/MM/YYYY to YYYY-MM-DD
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+      }
+    }
+    
+    // If it's an Excel serial number
+    if (typeof excelDate === 'number') {
+      const date = new Date((excelDate - 25569) * 86400 * 1000);
+      return date.toISOString().split('T')[0];
+    }
+    
+    // If it's already a Date object
+    if (excelDate instanceof Date) {
+      return excelDate.toISOString().split('T')[0];
+    }
+    
+    // Default fallback
+    return new Date().toISOString().split('T')[0];
   };
 
   const processExcelFile = async () => {
@@ -78,7 +108,10 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
           const remarks = row['Remarks'] || row['remarks'] || '';
           const upiRef = row['UPI Ref No.'] || row['UPI Ref'] || row['upi_ref'] || row['transaction_ref'] || '';
           const amount = parseFloat(row['Amount'] || row['amount'] || '0');
-          const paymentDate = row['Date'] || row['Payment Date'] || row['payment_date'] || new Date().toISOString().split('T')[0];
+          const rawDate = row['Date'] || row['Payment Date'] || row['payment_date'];
+          
+          // Convert date to proper format
+          const paymentDate = convertExcelDate(rawDate);
 
           // Check 1: Has Remarks field?
           if (!remarks || remarks.trim() === '') {
