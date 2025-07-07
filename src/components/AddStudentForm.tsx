@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, BookOpen, FileText, Check } from 'lucide-react';
+import { X, User, Mail, Phone, BookOpen, FileText, Check, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -16,6 +16,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
     email: '',
     phone: '',
     className: '',
+    fees: '',
     notes: ''
   });
 
@@ -30,6 +31,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
         email: editingStudent.email || '',
         phone: editingStudent.phone || '',
         className: editingStudent.class_name || '',
+        fees: editingStudent.fees?.toString() || '',
         notes: editingStudent.notes || ''
       });
     }
@@ -46,6 +48,8 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
     const newErrors: any = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.className.trim()) newErrors.className = 'Class is required';
+    if (!formData.fees.trim()) newErrors.fees = 'Fees is required';
+    if (formData.fees && isNaN(parseFloat(formData.fees))) newErrors.fees = 'Please enter a valid amount';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -53,7 +57,10 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
 
   const handleSave = () => {
     if (validateForm()) {
-      onSave(formData);
+      onSave({
+        ...formData,
+        fees: parseFloat(formData.fees)
+      });
       if (navigator.vibrate) {
         navigator.vibrate(100);
       }
@@ -129,23 +136,42 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
               />
             </div>
 
-            {/* Class Field */}
+            {/* Class Field - Now allows typing */}
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
                 <BookOpen size={16} className="text-[#0052cc]" />
                 <span>Class *</span>
               </label>
-              <select
+              <Input
                 value={formData.className}
                 onChange={(e) => handleInputChange('className', e.target.value)}
-                className={`w-full h-12 px-3 border rounded-md bg-white ${errors.className ? 'border-red-500' : 'border-blue-200'} focus:border-[#0052cc] focus:outline-none`}
-              >
-                <option value="">Select a class</option>
+                placeholder="Enter class name"
+                className={`h-12 ${errors.className ? 'border-red-500' : 'border-blue-200 focus:border-[#0052cc]'}`}
+                list="classes-list"
+              />
+              <datalist id="classes-list">
                 {classes.map((className) => (
-                  <option key={className} value={className}>{className}</option>
+                  <option key={className} value={className} />
                 ))}
-              </select>
+              </datalist>
               {errors.className && <p className="text-red-500 text-xs mt-1">{errors.className}</p>}
+            </div>
+
+            {/* Fees Field */}
+            <div>
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
+                <DollarSign size={16} className="text-[#0052cc]" />
+                <span>Monthly Fees *</span>
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.fees}
+                onChange={(e) => handleInputChange('fees', e.target.value)}
+                placeholder="0.00"
+                className={`h-12 ${errors.fees ? 'border-red-500' : 'border-blue-200 focus:border-[#0052cc]'}`}
+              />
+              {errors.fees && <p className="text-red-500 text-xs mt-1">{errors.fees}</p>}
             </div>
 
             {/* Notes Field */}

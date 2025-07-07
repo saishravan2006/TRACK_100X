@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
-import { Upload, Download, TrendingUp, FileSpreadsheet, Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Upload, Download, TrendingUp, FileSpreadsheet, Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import AddPaymentForm from './AddPaymentForm';
+import ExcelUploadProcessor from './ExcelUploadProcessor';
 
 const PaymentManager: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
@@ -13,7 +13,9 @@ const PaymentManager: React.FC = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [resetting, setResetting] = useState(false);
   const { toast } = useToast();
 
   // Fetch payments from Supabase
@@ -63,34 +65,31 @@ const PaymentManager: React.FC = () => {
     payment.status === 'PAID' ? sum + parseFloat(payment.amount) : sum, 0
   );
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      console.log('File uploaded:', file.name);
-      // TODO: Implement Excel file processing
-      toast({
-        title: "File uploaded",
-        description: "Excel processing feature coming soon!",
-      });
+  const handleResetMonth = async () => {
+    if (!window.confirm('Are you sure you want to reset this month? This will archive current payments and reset all balances. This action cannot be undone.')) {
+      return;
     }
-  };
 
-  const handleDragOver = (event: React.DragEvent) => {
-    event.preventDefault();
-    setDragOver(true);
-  };
+    setResetting(true);
+    try {
+      const { error } = await supabase.rpc('reset_monthly_data');
+      
+      if (error) throw error;
 
-  const handleDragLeave = () => {
-    setDragOver(false);
-  };
-
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault();
-    setDragOver(false);
-    const files = event.dataTransfer.files;
-    if (files.length > 0) {
-      console.log('File dropped:', files[0].name);
-      // TODO: Handle file processing here
+      await fetchPayments();
+      toast({
+        title: "Success",
+        description: "Month has been reset successfully. All payments have been archived and balances reset.",
+      });
+    } catch (error) {
+      console.error('Error resetting month:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reset month data",
+        variant: "destructive",
+      });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -236,8 +235,14 @@ const PaymentManager: React.FC = () => {
           <Button 
             className="bg-red-600 hover:bg-red-700 min-w-[48px] min-h-[48px] px-3 text-xs"
             variant="destructive"
+            onClick={handleResetMonth}
+            disabled={resetting}
           >
-            Reset Month
+            {resetting ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              'Reset Month'
+            )}
           </Button>
         </div>
 
@@ -303,18 +308,11 @@ const PaymentManager: React.FC = () => {
               <Button 
                 size="sm" 
                 className="bg-[#0052cc] hover:bg-blue-700 w-full h-8 text-xs"
-                onClick={() => document.getElementById('file-upload')?.click()}
+                onClick={() => setShowUploadForm(true)}
               >
                 <Upload size={14} className="mr-1" />
-                Choose File
+                Upload Excel
               </Button>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
             </div>
           </div>
 
@@ -380,6 +378,17 @@ const PaymentManager: React.FC = () => {
             fetchPayments();
           }}
           editingPayment={editingPayment}
+        />
+      )}
+
+      {/* Excel Upload Form */}
+      {showUploadForm && (
+        <ExcelUploadProcessor 
+          onClose={() => setShowUploadForm(false)}
+          onSuccess={() => {
+            fetchPayments();
+            setShowUploadForm(false);
+          }}
         />
       )}
     </div>

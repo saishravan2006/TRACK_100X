@@ -9,6 +9,51 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      classes: {
+        Row: {
+          class_name: string
+          class_type: string
+          created_at: string
+          date: string | null
+          end_time: string | null
+          fees: number
+          id: string
+          location: string
+          notes: string | null
+          repeat_days: string[] | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_name: string
+          class_type?: string
+          created_at?: string
+          date?: string | null
+          end_time?: string | null
+          fees?: number
+          id?: string
+          location: string
+          notes?: string | null
+          repeat_days?: string[] | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_name?: string
+          class_type?: string
+          created_at?: string
+          date?: string | null
+          end_time?: string | null
+          fees?: number
+          id?: string
+          location?: string
+          notes?: string | null
+          repeat_days?: string[] | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_errors: {
         Row: {
           created_at: string
@@ -176,6 +221,7 @@ export type Database = {
           class_name: string
           created_at: string
           email: string | null
+          fees: number | null
           id: string
           name: string
           notes: string | null
@@ -187,6 +233,7 @@ export type Database = {
           class_name: string
           created_at?: string
           email?: string | null
+          fees?: number | null
           id?: string
           name: string
           notes?: string | null
@@ -198,6 +245,7 @@ export type Database = {
           class_name?: string
           created_at?: string
           email?: string | null
+          fees?: number | null
           id?: string
           name?: string
           notes?: string | null
@@ -214,6 +262,10 @@ export type Database = {
     Functions: {
       recalculate_payment_status: {
         Args: { student_uuid: string }
+        Returns: undefined
+      }
+      reset_monthly_data: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
     }

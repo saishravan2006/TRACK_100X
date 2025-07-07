@@ -142,6 +142,7 @@ const StudentManagement: React.FC = () => {
             email: studentData.email,
             phone: studentData.phone,
             class_name: studentData.className,
+            fees: studentData.fees,
             notes: studentData.notes,
             updated_at: new Date().toISOString()
           })
@@ -164,6 +165,7 @@ const StudentManagement: React.FC = () => {
             email: studentData.email,
             phone: studentData.phone,
             class_name: studentData.className,
+            fees: studentData.fees,
             notes: studentData.notes
           });
 
@@ -200,6 +202,9 @@ const StudentManagement: React.FC = () => {
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{student.student_id}</span>
           </div>
           <p className="text-sm text-gray-600 mb-1 truncate">{student.class_name}</p>
+          <div className="flex items-center space-x-1 text-xs text-green-600 font-medium mb-1">
+            <span>₹{student.fees || 0}/month</span>
+          </div>
           <div className="flex flex-col space-y-1 text-xs text-gray-500">
             <div className="flex items-center space-x-1">
               <Mail size={12} />
