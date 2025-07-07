@@ -224,16 +224,12 @@ const AddClassForm: React.FC<AddClassFormProps> = ({ onClose, onSave }) => {
                   <MapPin size={16} className="text-[#0052cc]" />
                   <span>Location *</span>
                 </label>
-                <select
+                <Input
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
-                  className={`w-full h-12 px-3 border rounded-md bg-white ${errors.location ? 'border-red-500' : 'border-blue-200'} focus:border-[#0052cc] focus:outline-none`}
-                >
-                  <option value="">Select location</option>
-                  {locations.map((location) => (
-                    <option key={location} value={location}>{location}</option>
-                  ))}
-                </select>
+                  placeholder="Enter class location (e.g., Studio A, Online, Main Hall)"
+                  className={`h-12 ${errors.location ? 'border-red-500' : 'border-blue-200 focus:border-[#0052cc]'}`}
+                />
                 {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
               </div>
 

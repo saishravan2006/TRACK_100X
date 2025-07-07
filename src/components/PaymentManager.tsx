@@ -133,24 +133,67 @@ const PaymentManager: React.FC = () => {
 
   const handleMonthlyReset = async () => {
     try {
-      // Alternative approach: Delete payments directly instead of using the RPC function
+      // Step 3: Query student balance table to get current data
+      const { data: studentBalances, error: fetchError } = await supabase
+        .from('student_balances')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+
+      // Step 4-6: Process each student balance based on status
+      for (const balance of studentBalances) {
+        let newCurrentBalance = 0;
+        let newTotalPaid = 0;
+        const totalFees = balance.total_fees;
+
+        if (balance.status === 'paid') {
+          // Step 4: For paid status (current balance equals zero)
+          newCurrentBalance = 0;
+          newTotalPaid = 0;
+        } else if (balance.status === 'pending') {
+          // Step 5: For pending status (current balance is positive)
+          newCurrentBalance = balance.current_balance + totalFees;
+          newTotalPaid = 0;
+        } else if (balance.status === 'excess') {
+          // Step 6: For excess status (current balance is negative)
+          newCurrentBalance = balance.current_balance + totalFees;
+          newTotalPaid = 0;
+        }
+
+        // Step 7: Save updated values to student balance table
+        const { error: updateError } = await supabase
+          .from('student_balances')
+          .update({
+            current_balance: newCurrentBalance,
+            total_paid: newTotalPaid,
+            last_payment_date: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', balance.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // Delete current month's payments
       const currentDate = new Date();
       const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('payments')
         .delete()
         .gte('payment_date', firstDayOfMonth.toISOString().split('T')[0])
         .lte('payment_date', lastDayOfMonth.toISOString().split('T')[0]);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
       await fetchPayments();
       setShowResetConfirm(false);
+      
+      // Step 8: Display success message
       toast({
-        title: "Success",
-        description: "Monthly payments reset successfully",
+        title: "Reset Complete",
+        description: "Monthly payments have been reset successfully. Student balances updated based on their payment status.",
       });
     } catch (error) {
       console.error('Error resetting monthly data:', error);
@@ -397,8 +440,8 @@ const PaymentManager: React.FC = () => {
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reset this month's payments?</h3>
-            <p className="text-gray-600 mb-6">This will delete all payment records for the current month. This action cannot be undone.</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Are you sure you want to reset?</h3>
+            <p className="text-gray-600 mb-6">This will reset all monthly payments and update student balances based on their current status. This action cannot be undone.</p>
             <div className="flex space-x-3">
               <Button
                 onClick={() => setShowResetConfirm(false)}

@@ -206,18 +206,18 @@ const CalendarView: React.FC = () => {
             )}
 
             {/* Calendar Grid */}
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-lg border-2 border-gray-200 shadow-lg overflow-hidden">
               {/* Day Names Header */}
-              <div className="grid grid-cols-7 bg-gray-50">
+              <div className="grid grid-cols-7 bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
                 {dayNames.map((dayName) => (
-                  <div key={dayName} className="p-3 text-center text-sm font-medium text-gray-600">
+                  <div key={dayName} className="p-4 text-center text-sm font-bold text-gray-700 border-r border-gray-200 last:border-r-0">
                     {dayName}
                   </div>
                 ))}
               </div>
 
               {/* Calendar Days */}
-              <div className="grid grid-cols-7">
+              <div className="grid grid-cols-7 border-collapse">
                 {days.map((day, index) => {
                   const dayClasses = day ? getClassesForDate(day) : [];
                   const isToday = day && isCurrentMonth && day === today.getDate();
@@ -225,14 +225,14 @@ const CalendarView: React.FC = () => {
                   return (
                     <div
                       key={index}
-                      className={`min-h-[100px] p-2 border-b border-r border-gray-100 relative ${
-                        day ? 'hover:bg-blue-50 cursor-pointer' : ''
-                      } ${isToday ? 'bg-blue-500 text-white' : ''}`}
+                      className={`min-h-[120px] p-3 border-b-2 border-r border-gray-200 last:border-r-0 relative transition-all duration-200 ${
+                        day ? 'hover:bg-blue-50 cursor-pointer hover:shadow-md' : 'bg-gray-50'
+                      } ${isToday ? 'bg-blue-600 text-white shadow-lg' : 'bg-white'}`}
                       onClick={() => day && handleDateClick(day)}
                     >
                       {day && (
                         <>
-                          <div className={`text-sm font-medium mb-1 ${isToday ? 'text-white' : 'text-gray-900'}`}>
+                          <div className={`text-lg font-bold mb-2 ${isToday ? 'text-white' : 'text-gray-800'}`}>
                             {day}
                           </div>
                           
@@ -241,14 +241,18 @@ const CalendarView: React.FC = () => {
                             {dayClasses.slice(0, 2).map((classItem, idx) => (
                               <div
                                 key={idx}
-                                className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate"
+                                className={`text-xs px-2 py-1 rounded-full font-medium truncate ${
+                                  isToday 
+                                    ? 'bg-white/20 text-white border border-white/30' 
+                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                }`}
                               >
                                 {classItem.class_name}
                                 {classItem.start_time && ` ${classItem.start_time.slice(0, 5)}`}
                               </div>
                             ))}
                             {dayClasses.length > 2 && (
-                              <div className="text-xs text-gray-500">
+                              <div className={`text-xs font-medium ${isToday ? 'text-white/80' : 'text-gray-600'}`}>
                                 +{dayClasses.length - 2} more
                               </div>
                             )}
