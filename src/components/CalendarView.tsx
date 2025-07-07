@@ -161,18 +161,20 @@ const CalendarView: React.FC = () => {
                 <Calendar size={20} className="text-[#0052cc]" />
                 <span>Calendar View</span>
               </CardTitle>
+              
+              {/* Month Navigation */}
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => navigateMonth('prev')}
-                  className="p-2"
+                  className="h-8 w-8 p-0 border-gray-200 hover:bg-gray-50"
                 >
                   <ChevronLeft size={16} />
                 </Button>
                 
                 <div className="text-center min-w-[140px]">
-                  <h2 className="text-lg font-bold text-black">
+                  <h2 className="text-base font-semibold text-gray-900">
                     {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                   </h2>
                 </div>
@@ -181,7 +183,7 @@ const CalendarView: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => navigateMonth('next')}
-                  className="p-2"
+                  className="h-8 w-8 p-0 border-gray-200 hover:bg-gray-50"
                 >
                   <ChevronRight size={16} />
                 </Button>
@@ -193,8 +195,8 @@ const CalendarView: React.FC = () => {
             
             {/* Today's date indicator */}
             {isCurrentMonth && (
-              <div className="text-center p-2 bg-blue-50 rounded-lg mb-4">
-                <p className="text-sm text-blue-600 font-medium">
+              <div className="text-center p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg mb-4 border border-blue-200">
+                <p className="text-sm text-[#0052cc] font-medium">
                   Today: {today.toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -206,18 +208,20 @@ const CalendarView: React.FC = () => {
             )}
 
             {/* Calendar Grid */}
-            <div className="bg-white rounded-lg border-2 border-gray-200 shadow-lg overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               {/* Day Names Header */}
-              <div className="grid grid-cols-7 bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
+              <div className="grid grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                 {dayNames.map((dayName) => (
-                  <div key={dayName} className="p-4 text-center text-sm font-bold text-gray-700 border-r border-gray-200 last:border-r-0">
-                    {dayName}
+                  <div key={dayName} className="p-3 text-center">
+                    <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      {dayName}
+                    </span>
                   </div>
                 ))}
               </div>
 
               {/* Calendar Days */}
-              <div className="grid grid-cols-7 border-collapse">
+              <div className="grid grid-cols-7">
                 {days.map((day, index) => {
                   const dayClasses = day ? getClassesForDate(day) : [];
                   const isToday = day && isCurrentMonth && day === today.getDate();
@@ -225,14 +229,14 @@ const CalendarView: React.FC = () => {
                   return (
                     <div
                       key={index}
-                      className={`min-h-[120px] p-3 border-b-2 border-r border-gray-200 last:border-r-0 relative transition-all duration-200 ${
-                        day ? 'hover:bg-blue-50 cursor-pointer hover:shadow-md' : 'bg-gray-50'
-                      } ${isToday ? 'bg-blue-600 text-white shadow-lg' : 'bg-white'}`}
+                      className={`min-h-[100px] p-2 border-b border-r border-gray-100 last:border-r-0 relative transition-all duration-200 ${
+                        day ? 'hover:bg-blue-50 cursor-pointer' : 'bg-gray-50'
+                      } ${isToday ? 'bg-gradient-to-br from-[#0052cc] to-blue-600 text-white' : 'bg-white'}`}
                       onClick={() => day && handleDateClick(day)}
                     >
                       {day && (
                         <>
-                          <div className={`text-lg font-bold mb-2 ${isToday ? 'text-white' : 'text-gray-800'}`}>
+                          <div className={`text-sm font-semibold mb-2 ${isToday ? 'text-white' : 'text-gray-900'}`}>
                             {day}
                           </div>
                           
@@ -241,18 +245,22 @@ const CalendarView: React.FC = () => {
                             {dayClasses.slice(0, 2).map((classItem, idx) => (
                               <div
                                 key={idx}
-                                className={`text-xs px-2 py-1 rounded-full font-medium truncate ${
+                                className={`text-xs px-2 py-1 rounded-md font-medium truncate ${
                                   isToday 
-                                    ? 'bg-white/20 text-white border border-white/30' 
-                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                    ? 'bg-white bg-opacity-20 text-white border border-white border-opacity-30' 
+                                    : 'bg-blue-100 text-[#0052cc] border border-blue-200'
                                 }`}
                               >
                                 {classItem.class_name}
-                                {classItem.start_time && ` ${classItem.start_time.slice(0, 5)}`}
+                                {classItem.start_time && (
+                                  <div className="text-xs opacity-80">
+                                    {classItem.start_time.slice(0, 5)}
+                                  </div>
+                                )}
                               </div>
                             ))}
                             {dayClasses.length > 2 && (
-                              <div className={`text-xs font-medium ${isToday ? 'text-white/80' : 'text-gray-600'}`}>
+                              <div className={`text-xs font-medium ${isToday ? 'text-white text-opacity-80' : 'text-gray-500'}`}>
                                 +{dayClasses.length - 2} more
                               </div>
                             )}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, Upload, DollarSign, RotateCcw, Edit, Trash2, Save, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -384,25 +383,25 @@ const PaymentManager: React.FC = () => {
       <div className="p-4">
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div 
-            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
+            className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
             onClick={() => handleCardClick('paid')}
           >
             <div className="text-xl font-bold">{stats.paid}</div>
-            <div className="text-xs text-blue-100">Paid Students</div>
+            <div className="text-xs text-green-100">Paid Students</div>
           </div>
           <div 
-            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
+            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
             onClick={() => handleCardClick('pending')}
           >
             <div className="text-xl font-bold">{stats.pending}</div>
-            <div className="text-xs text-blue-100">Pending Students</div>
+            <div className="text-xs text-orange-100">Pending Students</div>
           </div>
           <div 
-            className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
+            className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg p-3 text-center cursor-pointer hover:shadow-md transition-all"
             onClick={() => handleCardClick('excess')}
           >
             <div className="text-xl font-bold">{stats.excess}</div>
-            <div className="text-xs text-blue-100">Excess Students</div>
+            <div className="text-xs text-purple-100">Excess Students</div>
           </div>
         </div>
 
