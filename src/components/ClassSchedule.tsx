@@ -10,7 +10,7 @@ import ClassDetailsModal from './ClassDetailsModal';
 const ClassSchedule: React.FC = () => {
   const [classes, setClasses] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -159,7 +159,7 @@ const ClassSchedule: React.FC = () => {
             variant="outline" 
             className="text-xs h-8 px-3"
             onClick={() => {
-              setSelectedClass(classItem);
+              setSelectedDate(classItem.date);
               setShowDetails(true);
             }}
           >
@@ -261,12 +261,12 @@ const ClassSchedule: React.FC = () => {
       )}
 
       {/* Class Details Modal */}
-      {showDetails && selectedClass && (
+      {showDetails && selectedDate && (
         <ClassDetailsModal 
-          classData={selectedClass}
+          date={selectedDate}
           onClose={() => {
             setShowDetails(false);
-            setSelectedClass(null);
+            setSelectedDate(null);
           }}
         />
       )}
