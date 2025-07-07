@@ -29,7 +29,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
         name: editingStudent.name || '',
         email: editingStudent.email || '',
         phone: editingStudent.phone || '',
-        className: editingStudent.className || '',
+        className: editingStudent.class_name || '',
         notes: editingStudent.notes || ''
       });
     }

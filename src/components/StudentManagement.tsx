@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Users, Phone, Mail, Trash2, Filter, Download, UserPlus, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 import AddStudentForm from './AddStudentForm';
 
 const StudentManagement: React.FC = () => {
@@ -11,54 +13,60 @@ const StudentManagement: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
-
-  // Mock student data with student IDs
-  const [students, setStudents] = useState([
-    {
-      id: 1,
-      studentId: 'STU001',
-      name: 'Sarah Johnson',
-      email: 'sarah@email.com',
-      phone: '+1 234 567 8901',
-      className: 'Dance Level 1',
-      status: 'Active',
-      paymentStatus: 'Paid',
-      lastPayment: '2024-01-15',
-      amount: 150
-    },
-    {
-      id: 2,
-      studentId: 'STU002',
-      name: 'Mike Chen',
-      email: 'mike@email.com',
-      phone: '+1 234 567 8902',
-      className: 'Math Tutoring',
-      status: 'Active',
-      paymentStatus: 'Pending',
-      lastPayment: '2023-12-20',
-      amount: 200
-    },
-    {
-      id: 3,
-      studentId: 'STU003',
-      name: 'Emily Davis',
-      email: 'emily@email.com',
-      phone: '+1 234 567 8903',
-      className: 'Dance Level 2',
-      status: 'Active',
-      paymentStatus: 'Excess',
-      lastPayment: '2024-01-10',
-      amount: 300
-    }
-  ]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   const classes = ['Dance Level 1', 'Dance Level 2', 'Math Tutoring', 'Salsa Beginners', 'Advanced Ballet'];
 
+  // Fetch students from Supabase
+  const fetchStudents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select(`
+          *,
+          student_balances (
+            current_balance,
+            total_paid,
+            last_payment_date
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const studentsWithStatus = data.map(student => ({
+        ...student,
+        status: 'Active',
+        paymentStatus: student.student_balances?.[0]?.current_balance > 0 ? 'Excess' : 
+                      student.student_balances?.[0]?.current_balance < 0 ? 'Pending' : 'Paid',
+        lastPayment: student.student_balances?.[0]?.last_payment_date || new Date().toISOString().split('T')[0],
+        amount: Math.abs(student.student_balances?.[0]?.current_balance || 0)
+      }));
+
+      setStudents(studentsWithStatus);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load students",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.studentId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterClass === 'all' || student.className === filterClass;
+                         student.class_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.student_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterClass === 'all' || student.class_name === filterClass;
     return matchesSearch && matchesFilter;
   });
 
@@ -71,9 +79,25 @@ const StudentManagement: React.FC = () => {
     }
   };
 
-  const generateStudentId = () => {
-    const maxId = Math.max(...students.map(s => parseInt(s.studentId.replace('STU', ''))));
-    return `STU${String(maxId + 1).padStart(3, '0')}`;
+  const generateStudentId = async () => {
+    const { data, error } = await supabase
+      .from('students')
+      .select('student_id')
+      .order('student_id', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error generating student ID:', error);
+      return 'STU001';
+    }
+
+    if (data.length === 0) {
+      return 'STU001';
+    }
+
+    const lastId = data[0].student_id;
+    const lastNumber = parseInt(lastId.replace('STU', ''));
+    return `STU${String(lastNumber + 1).padStart(3, '0')}`;
   };
 
   const handleEditStudent = (student: any) => {
@@ -81,35 +105,87 @@ const StudentManagement: React.FC = () => {
     setShowAddForm(true);
   };
 
-  const handleDeleteStudent = (studentId: number) => {
+  const handleDeleteStudent = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
-      setStudents(students.filter(s => s.id !== studentId));
+      try {
+        const { error } = await supabase
+          .from('students')
+          .delete()
+          .eq('id', studentId);
+
+        if (error) throw error;
+
+        await fetchStudents();
+        toast({
+          title: "Success",
+          description: "Student deleted successfully",
+        });
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete student",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const handleSaveStudent = (studentData: any) => {
-    if (editingStudent) {
-      // Edit existing student
-      setStudents(students.map(s => 
-        s.id === editingStudent.id 
-          ? { ...s, ...studentData }
-          : s
-      ));
-    } else {
-      // Add new student
-      const newStudent = {
-        id: students.length + 1,
-        studentId: generateStudentId(),
-        ...studentData,
-        status: 'Active',
-        paymentStatus: 'Pending',
-        lastPayment: new Date().toISOString().split('T')[0],
-        amount: 0
-      };
-      setStudents([...students, newStudent]);
+  const handleSaveStudent = async (studentData: any) => {
+    try {
+      if (editingStudent) {
+        // Update existing student
+        const { error } = await supabase
+          .from('students')
+          .update({
+            name: studentData.name,
+            email: studentData.email,
+            phone: studentData.phone,
+            class_name: studentData.className,
+            notes: studentData.notes,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingStudent.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Student updated successfully",
+        });
+      } else {
+        // Add new student
+        const studentId = await generateStudentId();
+        const { error } = await supabase
+          .from('students')
+          .insert({
+            student_id: studentId,
+            name: studentData.name,
+            email: studentData.email,
+            phone: studentData.phone,
+            class_name: studentData.className,
+            notes: studentData.notes
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Student added successfully",
+        });
+      }
+
+      await fetchStudents();
+      setEditingStudent(null);
+      setShowAddForm(false);
+    } catch (error) {
+      console.error('Error saving student:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save student",
+        variant: "destructive",
+      });
     }
-    setEditingStudent(null);
-    setShowAddForm(false);
   };
 
   const StudentCard = ({ student, index }: any) => (
@@ -121,17 +197,17 @@ const StudentManagement: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-1">
             <h3 className="font-semibold text-gray-900 text-base truncate">{student.name}</h3>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{student.studentId}</span>
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{student.student_id}</span>
           </div>
-          <p className="text-sm text-gray-600 mb-1 truncate">{student.className}</p>
+          <p className="text-sm text-gray-600 mb-1 truncate">{student.class_name}</p>
           <div className="flex flex-col space-y-1 text-xs text-gray-500">
             <div className="flex items-center space-x-1">
               <Mail size={12} />
-              <span className="truncate">{student.email}</span>
+              <span className="truncate">{student.email || 'No email'}</span>
             </div>
             <div className="flex items-center space-x-1">
               <Phone size={12} />
-              <span>{student.phone}</span>
+              <span>{student.phone || 'No phone'}</span>
             </div>
           </div>
         </div>
@@ -169,6 +245,17 @@ const StudentManagement: React.FC = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="pb-20 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0052cc] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading students...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-20 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -190,7 +277,7 @@ const StudentManagement: React.FC = () => {
         {/* Search and Filter */}
         <div className="flex space-x-3">
           <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 animate-pulse" />
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search your amazing students..."
               value={searchTerm}
@@ -291,8 +378,7 @@ const StudentManagement: React.FC = () => {
           setEditingStudent(null);
           setShowAddForm(true);
         }}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 shadow-lg z-10 animate-bounce"
-        style={{ animationDuration: '3s' }}
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-gradient-to-r from-[#0052cc] to-blue-600 hover:from-blue-700 hover:to-blue-800 shadow-lg z-10"
       >
         <UserPlus size={24} />
       </Button>

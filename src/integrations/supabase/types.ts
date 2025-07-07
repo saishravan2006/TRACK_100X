@@ -9,13 +9,213 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      payment_errors: {
+        Row: {
+          created_at: string
+          error_message: string
+          error_type: string
+          id: string
+          raw_data: Json | null
+          row_number: number | null
+          student_reference: string | null
+          upload_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          error_type: string
+          id?: string
+          raw_data?: Json | null
+          row_number?: number | null
+          student_reference?: string | null
+          upload_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          error_type?: string
+          id?: string
+          raw_data?: Json | null
+          row_number?: number | null
+          student_reference?: string | null
+          upload_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_errors_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "payment_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_uploads: {
+        Row: {
+          created_at: string
+          error_log: Json | null
+          failed_records: number
+          file_name: string
+          id: string
+          processed_records: number
+          status: string
+          total_records: number
+          upload_date: string
+        }
+        Insert: {
+          created_at?: string
+          error_log?: Json | null
+          failed_records?: number
+          file_name: string
+          id?: string
+          processed_records?: number
+          status: string
+          total_records?: number
+          upload_date?: string
+        }
+        Update: {
+          created_at?: string
+          error_log?: Json | null
+          failed_records?: number
+          file_name?: string
+          id?: string
+          processed_records?: number
+          status?: string
+          total_records?: number
+          upload_date?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string
+          payment_date: string
+          remarks: string | null
+          status: string
+          student_id: string
+          transaction_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method: string
+          payment_date?: string
+          remarks?: string | null
+          status: string
+          student_id: string
+          transaction_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string
+          payment_date?: string
+          remarks?: string | null
+          status?: string
+          student_id?: string
+          transaction_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_balances: {
+        Row: {
+          current_balance: number
+          id: string
+          last_payment_date: string | null
+          student_id: string
+          total_fees: number
+          total_paid: number
+          updated_at: string
+        }
+        Insert: {
+          current_balance?: number
+          id?: string
+          last_payment_date?: string | null
+          student_id: string
+          total_fees?: number
+          total_paid?: number
+          updated_at?: string
+        }
+        Update: {
+          current_balance?: number
+          id?: string
+          last_payment_date?: string | null
+          student_id?: string
+          total_fees?: number
+          total_paid?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_balances_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          class_name: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      recalculate_payment_status: {
+        Args: { student_uuid: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
