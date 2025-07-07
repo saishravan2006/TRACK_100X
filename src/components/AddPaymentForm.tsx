@@ -17,7 +17,6 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
     studentId: '',
     amount: '',
     paymentDate: new Date().toISOString().split('T')[0],
-    status: 'PAID',
     method: 'Manual Entry',
     remarks: '',
     transactionRef: ''
@@ -29,7 +28,6 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
   const { toast } = useToast();
 
   const paymentMethods = ['Manual Entry', 'Cash', 'Online', 'Excel Upload'];
-  const paymentStatuses = ['PAID', 'PENDING', 'EXCESS'];
 
   useEffect(() => {
     fetchStudents();
@@ -38,7 +36,6 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
         studentId: editingPayment.student_id || '',
         amount: editingPayment.amount?.toString() || '',
         paymentDate: editingPayment.payment_date || new Date().toISOString().split('T')[0],
-        status: editingPayment.status || 'PAID',
         method: editingPayment.method || 'Manual Entry',
         remarks: editingPayment.remarks || '',
         transactionRef: editingPayment.transaction_ref || ''
@@ -86,7 +83,6 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
         student_id: formData.studentId,
         amount: parseFloat(formData.amount),
         payment_date: formData.paymentDate,
-        status: formData.status,
         method: formData.method,
         remarks: formData.remarks || null,
         transaction_ref: formData.transactionRef || null
@@ -209,23 +205,6 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
               {errors.paymentDate && <p className="text-red-500 text-xs mt-1">{errors.paymentDate}</p>}
             </div>
 
-            {/* Payment Status */}
-            <div>
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                <Check size={16} className="text-[#0052cc]" />
-                <span>Status</span>
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                className="w-full h-12 px-3 border border-blue-200 rounded-md bg-white focus:border-[#0052cc] focus:outline-none"
-              >
-                {paymentStatuses.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-
             {/* Payment Method */}
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
@@ -252,7 +231,7 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
               <Input
                 value={formData.transactionRef}
                 onChange={(e) => handleInputChange('transactionRef', e.target.value)}
-                placeholder="Transaction ID or reference number"
+                placeholder="Transaction ID or UPI reference number"
                 className="h-12 border-blue-200 focus:border-[#0052cc]"
               />
             </div>

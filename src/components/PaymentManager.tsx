@@ -124,17 +124,8 @@ const PaymentManager: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PAID': return 'bg-green-100 text-green-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'EXCESS': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const handleSendReminder = (payment: any) => {
-    const message = `Hi ${payment.studentName}, this is a friendly reminder that your payment of ₹${payment.amount} for ${payment.className} is ${payment.status.toLowerCase()}. Please make the payment at your earliest convenience. Thank you!`;
+    const message = `Hi ${payment.studentName}, this is a friendly reminder about your payment of ₹${payment.amount} for ${payment.className}. Please make the payment at your earliest convenience. Thank you!`;
     const phoneNumber = payment.phone?.replace(/\D/g, '');
     if (phoneNumber) {
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
@@ -168,12 +159,14 @@ const PaymentManager: React.FC = () => {
             <span>•</span>
             <span className="truncate">{payment.method}</span>
           </div>
+          {payment.transaction_ref && (
+            <div className="text-xs text-blue-600 mt-1">
+              Ref: {payment.transaction_ref}
+            </div>
+          )}
         </div>
         <div className="text-right ml-2">
           <div className="text-lg font-bold text-gray-900">₹{payment.amount}</div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(payment.status)}`}>
-            {payment.status}
-          </span>
         </div>
       </div>
       
@@ -199,15 +192,13 @@ const PaymentManager: React.FC = () => {
           </Button>
         </div>
         
-        {payment.status === 'PENDING' && (
-          <Button 
-            size="sm" 
-            className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8"
-            onClick={() => handleSendReminder(payment)}
-          >
-            Send Reminder
-          </Button>
-        )}
+        <Button 
+          size="sm" 
+          className="bg-[#0052cc] hover:bg-blue-700 text-xs h-8"
+          onClick={() => handleSendReminder(payment)}
+        >
+          Send Reminder
+        </Button>
       </div>
     </div>
   );
@@ -273,30 +264,6 @@ const PaymentManager: React.FC = () => {
       </div>
 
       {/* Three Cards Side by Side */}
-      <div className="px-4 mb-6">
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-lg font-bold">
-              {payments.filter(p => p.status === 'PAID').length}
-            </div>
-            <div className="text-xs text-blue-100">Paid</div>
-          </div>
-          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-lg font-bold">
-              {payments.filter(p => p.status === 'PENDING').length}
-            </div>
-            <div className="text-xs text-blue-100">Pending</div>
-          </div>
-          <div className="bg-[#0052cc] text-white rounded-lg p-3 text-center shadow-sm">
-            <div className="text-lg font-bold">
-              {payments.filter(p => p.status === 'EXCESS').length}
-            </div>
-            <div className="text-xs text-blue-100">Excess</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Upload and Manual Entry Cards */}
       <div className="px-4 mb-6">
         <div className="grid grid-cols-2 gap-3">
           {/* Upload Excel Card */}

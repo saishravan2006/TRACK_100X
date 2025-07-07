@@ -2,9 +2,11 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ClassDetailsModal from './ClassDetailsModal';
 
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -44,6 +46,12 @@ const Calendar: React.FC = () => {
     }
 
     return days;
+  };
+
+  const handleDateClick = (day: number) => {
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const dateString = clickedDate.toISOString().split('T')[0];
+    setSelectedDate(dateString);
   };
 
   const days = getDaysInMonth(currentDate);
@@ -131,6 +139,7 @@ const Calendar: React.FC = () => {
                     ? 'bg-blue-500 text-white font-bold'
                     : ''
                 }`}
+                onClick={() => day && handleDateClick(day)}
               >
                 {day && (
                   <>
@@ -175,7 +184,6 @@ const Calendar: React.FC = () => {
           </div>
         </div>
 
-        {/* Upcoming Classes Preview */}
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <h3 className="font-semibold text-gray-900 mb-3">Upcoming Classes</h3>
           <div className="space-y-3">
@@ -197,6 +205,14 @@ const Calendar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Class Details Modal */}
+      {selectedDate && (
+        <ClassDetailsModal
+          date={selectedDate}
+          onClose={() => setSelectedDate(null)}
+        />
+      )}
     </div>
   );
 };

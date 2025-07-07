@@ -69,12 +69,11 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
 
       if (uploadError) throw uploadError;
 
-      // For now, simulate processing (in real implementation, you'd parse the Excel file)
-      // This is a basic simulation - you would need a proper Excel parsing library like xlsx
+      // Updated mock data with UPI Ref No column
       const mockData = [
-        { studentId: 'STU001', amount: 1500, date: '2024-01-15', status: 'PAID' },
-        { studentId: 'STU002', amount: 1200, date: '2024-01-15', status: 'PAID' },
-        { studentId: 'STU999', amount: 1000, date: '2024-01-15', status: 'PAID' }, // This will fail - student doesn't exist
+        { studentId: 'STU001', amount: 1500, date: '2024-01-15', upiRefNo: 'UPI123456789' },
+        { studentId: 'STU002', amount: 1200, date: '2024-01-15', upiRefNo: 'UPI987654321' },
+        { studentId: 'STU999', amount: 1000, date: '2024-01-15', upiRefNo: 'UPI555666777' }, // This will fail - student doesn't exist
       ];
 
       let processedCount = 0;
@@ -94,7 +93,7 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
           if (studentError || !student) {
             failedCount++;
             errors.push({
-              row_number: i + 2, // +2 because Excel rows start at 1 and we assume row 1 is header
+              row_number: i + 2,
               student_reference: row.studentId,
               error_type: 'STUDENT_NOT_FOUND',
               error_message: `Student with ID ${row.studentId} not found`,
@@ -103,15 +102,15 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
             continue;
           }
 
-          // Insert payment
+          // Insert payment with UPI Ref No as transaction reference
           const { error: paymentError } = await supabase
             .from('payments')
             .insert({
               student_id: student.id,
               amount: row.amount,
               payment_date: row.date,
-              status: row.status,
-              method: 'Excel Upload'
+              method: 'Excel Upload',
+              transaction_ref: row.upiRefNo // Using UPI Ref No as transaction reference
             });
 
           if (paymentError) {
@@ -188,8 +187,8 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
   };
 
   const downloadTemplate = () => {
-    // Create a simple CSV template
-    const csvContent = "Student ID,Amount,Date,Status\nSTU001,1500,2024-01-15,PAID\nSTU002,1200,2024-01-15,PAID";
+    // Updated CSV template with UPI Ref No column
+    const csvContent = "Student ID,Amount,Date,UPI Ref No\nSTU001,1500,2024-01-15,UPI123456789\nSTU002,1200,2024-01-15,UPI987654321";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -249,6 +248,7 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
                   className="hidden"
                 />
                 <p className="text-xs text-gray-500">Supports .xlsx, .xls, .csv files</p>
+                <p className="text-xs text-blue-600 mt-1">Include UPI Ref No column for transaction reference</p>
               </div>
 
               {file && (

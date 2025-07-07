@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import AddStudentForm from './AddStudentForm';
+import ClassSelectionModal from './ClassSelectionModal';
 
 const StudentManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showClassSelection, setShowClassSelection] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,8 @@ const StudentManagement: React.FC = () => {
           student_balances (
             current_balance,
             total_paid,
-            last_payment_date
+            last_payment_date,
+            status
           )
         `)
         .order('created_at', { ascending: false });
@@ -39,8 +42,7 @@ const StudentManagement: React.FC = () => {
       const studentsWithStatus = data.map(student => ({
         ...student,
         status: 'Active',
-        paymentStatus: student.student_balances?.[0]?.current_balance > 0 ? 'Excess' : 
-                      student.student_balances?.[0]?.current_balance < 0 ? 'Pending' : 'Paid',
+        paymentStatus: student.student_balances?.[0]?.status || 'pending',
         lastPayment: student.student_balances?.[0]?.last_payment_date || new Date().toISOString().split('T')[0],
         amount: Math.abs(student.student_balances?.[0]?.current_balance || 0)
       }));
@@ -72,9 +74,9 @@ const StudentManagement: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Paid': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Excess': return 'bg-blue-100 text-blue-800';
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'excess': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -216,7 +218,7 @@ const StudentManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${getStatusColor(student.paymentStatus)}`}>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 capitalize ${getStatusColor(student.paymentStatus)}`}>
           {student.paymentStatus}
         </span>
       </div>
@@ -279,7 +281,6 @@ const StudentManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Search and Filter */}
         <div className="flex space-x-3">
           <div className="flex-1 relative">
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -337,7 +338,6 @@ const StudentManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="px-4 py-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center shadow-sm relative overflow-hidden">
@@ -358,7 +358,12 @@ const StudentManagement: React.FC = () => {
             <Users size={18} className="text-[#0052cc]" />
             <h2 className="font-semibold text-gray-900">Student Directory</h2>
           </div>
-          <Button variant="outline" size="sm" className="h-8 px-3 border-blue-200 hover:bg-blue-50">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 px-3 border-blue-200 hover:bg-blue-50"
+            onClick={() => setShowClassSelection(true)}
+          >
             <Download size={14} className="mr-1" />
             CSV
           </Button>
@@ -397,6 +402,13 @@ const StudentManagement: React.FC = () => {
           }}
           onSave={handleSaveStudent}
           editingStudent={editingStudent}
+        />
+      )}
+
+      {/* Class Selection Modal */}
+      {showClassSelection && (
+        <ClassSelectionModal 
+          onClose={() => setShowClassSelection(false)}
         />
       )}
     </div>
