@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { useToast, toast } from '@/hooks/use-toast';
 import AddPaymentForm from './AddPaymentForm';
 import ExcelUploadProcessor from './ExcelUploadProcessor';
 
@@ -16,6 +16,7 @@ const PaymentManager = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [studentStats, setStudentStats] = useState({
     paid: 0,
     pending: 0,
@@ -28,6 +29,7 @@ const PaymentManager = () => {
     averagePayment: 0,
   });
   const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -36,19 +38,28 @@ const PaymentManager = () => {
   }, []);
 
   useEffect(() => {
-    // Filter payments based on search term
-    if (searchTerm.trim() === '') {
-      setFilteredPayments(payments);
-    } else {
-      const filtered = payments.filter(payment => 
+    // Filter payments based on search term and status filter
+    let filtered = payments;
+    
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(payment => 
         payment.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         payment.students?.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         payment.amount.toString().includes(searchTerm) ||
         payment.method.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredPayments(filtered);
     }
-  }, [searchTerm, payments]);
+    
+    if (statusFilter !== 'all') {
+      // Filter by status based on student balance status
+      filtered = filtered.filter(payment => {
+        // This would need to be implemented based on your status logic
+        return true; // Placeholder for now
+      });
+    }
+    
+    setFilteredPayments(filtered);
+  }, [searchTerm, statusFilter, payments]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -122,10 +133,12 @@ const PaymentManager = () => {
     }
   };
 
-  const handlePaymentSaved = () => {
-    fetchPayments();
-    fetchStats();
-    fetchStudentStats();
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status);
+  };
+
+  const handleResetConfirm = () => {
+    setShowResetConfirm(true);
   };
 
   const handleResetMonth = async () => {
@@ -240,216 +253,223 @@ const PaymentManager = () => {
       });
     } finally {
       setResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
+  const handlePaymentSaved = () => {
+    fetchPayments();
+    fetchStats();
+    fetchStudentStats();
+  };
+
   return (
-    <div className="p-4 space-y-6 max-w-full overflow-hidden">
-      {/* Header with Search and Reset */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-xl flex items-center justify-center">
-              <DollarSign size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-              <p className="text-gray-600 text-sm">Track and manage student payments</p>
-            </div>
-          </div>
-          
-          <Button
-            onClick={handleResetMonth}
-            disabled={resetting}
-            size="sm"
-            className="bg-red-600 hover:bg-red-700 text-white h-8 px-3 animate-pulse"
+    <div className="min-h-screen bg-white relative">
+      {/* Header Section */}
+      <div className="text-center pt-4 pb-4 px-4">
+        <h1 className="text-2xl font-bold text-[#0052cc] mb-2">Payments</h1>
+        <p className="text-base text-gray-600">Track and manage student payments</p>
+      </div>
+
+      {/* Status Cards Section */}
+      <div className="px-4 mb-6">
+        <div className="grid grid-cols-3 gap-1 mb-4">
+          <Card 
+            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
+            onClick={() => handleStatusFilter('paid')}
           >
-            {resetting ? (
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-            ) : (
-              <>
-                <RotateCcw size={14} className="mr-1" />
-                Reset Month
-              </>
-            )}
-          </Button>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold mb-1">{studentStats.paid}</div>
+              <div className="text-sm">Paid Students</div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
+            onClick={() => handleStatusFilter('pending')}
+          >
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold mb-1">{studentStats.pending}</div>
+              <div className="text-sm">Pending Students</div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
+            onClick={() => handleStatusFilter('excess')}
+          >
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold mb-1">{studentStats.excess}</div>
+              <div className="text-sm">Excess Students</div>
+            </CardContent>
+          </Card>
         </div>
 
+        {/* Action Cards */}
+        <div className="grid grid-cols-2 gap-1">
+          <Card 
+            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
+            onClick={() => setShowUploadModal(true)}
+          >
+            <CardContent className="p-4 text-center">
+              <FileSpreadsheet size={24} className="mx-auto mb-2" />
+              <Button 
+                size="sm" 
+                className="bg-white text-[#0052cc] hover:bg-gray-100 mb-2 w-full"
+              >
+                Upload Payments
+              </Button>
+              <div className="text-xs">Import payments in seconds!</div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-[#0052cc] text-white cursor-pointer hover:bg-blue-700 transition-colors"
+            onClick={() => setShowAddForm(true)}
+          >
+            <CardContent className="p-4 text-center">
+              <Plus size={24} className="mx-auto mb-2" />
+              <Button 
+                size="sm" 
+                className="bg-white text-[#0052cc] hover:bg-gray-100 mb-2 w-full"
+              >
+                Add Payment
+              </Button>
+              <div className="text-xs">Manual entry</div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Table Section with Integrated Search */}
+      <div className="px-4">
         {/* Search Bar */}
-        <div className="relative">
+        <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <Input
-            placeholder="Search payments, students, amounts..."
+            placeholder="Filter payments..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full"
+            className="pl-10 pr-4 py-2 w-full border-gray-300"
           />
         </div>
-      </div>
 
-      {/* Student Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-800 flex items-center">
-              <Users size={16} className="mr-2" />
-              Paid Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-900">{studentStats.paid}</div>
-            <p className="text-xs text-green-700 mt-1">Payments completed</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-yellow-800 flex items-center">
-              <Clock size={16} className="mr-2" />
-              Pending Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-900">{studentStats.pending}</div>
-            <p className="text-xs text-yellow-700 mt-1">Awaiting payment</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 flex items-center">
-              <TrendingUp size={16} className="mr-2" />
-              Excess Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{studentStats.excess}</div>
-            <p className="text-xs text-blue-700 mt-1">Advance payments</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer" onClick={() => setShowUploadModal(true)}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
-              <FileSpreadsheet size={20} className="mr-2 text-green-600" />
-              Upload Excel
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full bg-green-600 hover:bg-green-700 mb-2">
-              Upload Payments
-            </Button>
-            <p className="text-xs text-gray-600">Import payments in seconds!</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer" onClick={() => setShowAddForm(true)}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
-              <Plus size={20} className="mr-2 text-[#0052cc]" />
-              Manual Entry
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full bg-[#0052cc] hover:bg-blue-700 mb-2">
-              Add Payment
-            </Button>
-            <p className="text-xs text-gray-600">Enter payment details manually</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="text-xs text-gray-600">Total Revenue</div>
-          <div className="text-lg font-bold text-gray-900">₹{stats.totalAmount.toLocaleString()}</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="text-xs text-gray-600">This Month</div>
-          <div className="text-lg font-bold text-gray-900">₹{stats.monthlyAmount.toLocaleString()}</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="text-xs text-gray-600">Total Students</div>
-          <div className="text-lg font-bold text-gray-900">{stats.totalStudents}</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="text-xs text-gray-600">Avg Payment</div>
-          <div className="text-lg font-bold text-gray-900">₹{stats.averagePayment.toFixed(0)}</div>
-        </div>
-      </div>
-
-      {/* Payments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Recent Payments</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {loading ? (
+        {/* Payments Table */}
+        <Card className="mb-20">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100 border-b">
                   <tr>
-                    <td colSpan={5} className="text-center py-8">
-                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0052cc]"></div>
-                    </td>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
+                      Amount
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-200">
+                      Status
+                    </th>
                   </tr>
-                ) : filteredPayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8">
-                      <AlertTriangle size={24} className="mx-auto text-gray-400 mb-2" />
-                      <p className="text-gray-500 text-sm">
-                        {searchTerm ? 'No payments match your search.' : 'No payments found.'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPayments.map((payment: any) => (
-                    <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">{payment.students?.name}</div>
-                        <div className="text-xs text-gray-500">({payment.students?.student_id})</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {new Date(payment.payment_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        ₹{payment.amount}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{payment.method}</td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          onClick={() => {
-                            setEditingPayment(payment);
-                            setShowAddForm(true);
-                          }}
-                          size="sm"
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          Edit
-                        </Button>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={4} className="text-center py-8">
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0052cc]"></div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : filteredPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center py-8">
+                        <AlertTriangle size={24} className="mx-auto text-gray-400 mb-2" />
+                        <p className="text-gray-500 text-sm">
+                          {searchTerm ? 'No payments match your search.' : 'No payments found.'}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPayments.map((payment: any) => (
+                      <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">{payment.students?.name}</div>
+                          <div className="text-xs text-gray-500">({payment.students?.student_id})</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {new Date(payment.payment_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                          ₹{payment.amount}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Paid
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-4 flex flex-col gap-3">
+        {/* Monthly Reset FAB */}
+        <Button
+          onClick={handleResetConfirm}
+          disabled={resetting}
+          size="icon"
+          className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-lg animate-pulse"
+        >
+          {resetting ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          ) : (
+            <RotateCcw size={20} />
+          )}
+        </Button>
+
+        {/* Manual Entry FAB */}
+        <Button
+          onClick={() => setShowAddForm(true)}
+          size="icon"
+          className="w-12 h-12 rounded-full bg-[#0052cc] hover:bg-blue-700 text-white shadow-lg"
+        >
+          <Plus size={20} />
+        </Button>
+      </div>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full animate-scale-in">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reset all payments?</h3>
+            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowResetConfirm(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleResetMonth}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+                disabled={resetting}
+              >
+                {resetting ? 'Resetting...' : 'Confirm'}
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       {/* Modals */}
       {showAddForm && (
