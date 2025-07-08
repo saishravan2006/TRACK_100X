@@ -13,6 +13,7 @@ const Dashboard: React.FC = () => {
     classesThisMonth: 0,
     revenueGrowth: 0
   });
+  const [nextClassMinutes, setNextClassMinutes] = useState<number | null>(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -43,6 +44,30 @@ const Dashboard: React.FC = () => {
         .lt('date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
       
       if (classesError) throw classesError;
+
+      // Fetch next class
+      const today = new Date().toISOString().split('T')[0];
+      const { data: nextClassData, error: nextClassError } = await supabase
+        .from('classes')
+        .select('start_time, date')
+        .gte('date', today)
+        .not('start_time', 'is', null)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .limit(1);
+      
+      if (nextClassError) throw nextClassError;
+
+      // Calculate minutes until next class
+      if (nextClassData && nextClassData.length > 0) {
+        const nextClass = nextClassData[0];
+        const now = new Date();
+        const classDateTime = new Date(`${nextClass.date}T${nextClass.start_time}`);
+        const diffInMinutes = Math.floor((classDateTime.getTime() - now.getTime()) / (1000 * 60));
+        setNextClassMinutes(diffInMinutes > 0 ? diffInMinutes : null);
+      } else {
+        setNextClassMinutes(null);
+      }
 
       const monthlyRevenue = paymentsData?.reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0) || 0;
       const totalStudents = studentsData?.length || 0;
@@ -121,7 +146,9 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Bell size={18} className="animate-pulse" />
               <span className="text-sm font-medium">
-                Track 10X Alert: Next class in 45 minutes!
+                {nextClassMinutes !== null 
+                  ? `Track 10X Alert: Next class in ${nextClassMinutes} minutes!`
+                  : 'Track 10X Alert: No upcoming classes scheduled!'}
               </span>
             </div>
             <button
