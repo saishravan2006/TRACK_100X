@@ -13,7 +13,6 @@ const Dashboard: React.FC = () => {
     classesThisMonth: 0,
     revenueGrowth: 0
   });
-  const [classesData, setClassesData] = useState<any[]>([]);
 
   const fetchDashboardData = async () => {
     try {
@@ -36,10 +35,10 @@ const Dashboard: React.FC = () => {
       
       if (paymentsError) throw paymentsError;
 
-      // Fetch classes this month with full details
+      // Fetch classes this month
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
-        .select('*')
+        .select('id')
         .gte('date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
         .lt('date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
       
@@ -49,7 +48,6 @@ const Dashboard: React.FC = () => {
       const totalStudents = studentsData?.length || 0;
       const classesThisMonth = classesData?.length || 0;
 
-      setClassesData(classesData || []);
       setDashboardData({
         monthlyRevenue,
         totalStudents,
@@ -73,7 +71,7 @@ const Dashboard: React.FC = () => {
     }
   }, [dashboardData.classesThisMonth]);
 
-  const MetricCard = ({ icon: Icon, title, value, subtitle, delay, showGrowth = false, isClassCard = false }: any) => (
+  const MetricCard = ({ icon: Icon, title, value, subtitle, delay, showGrowth = false }: any) => (
     <div 
       className={`bg-gradient-to-br from-[#0052cc] to-blue-600 text-white p-4 rounded-xl shadow-lg animate-fade-in w-full relative overflow-hidden`}
       style={{ animationDelay: `${delay}ms` }}
@@ -92,19 +90,6 @@ const Dashboard: React.FC = () => {
       </div>
       <h3 className="text-sm opacity-90 mb-1">{title}</h3>
       {subtitle && <p className="text-xs opacity-70">{subtitle}</p>}
-      {isClassCard && classesData.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-white/20">
-          <p className="text-xs opacity-70 mb-1">Classes:</p>
-          <div className="text-xs opacity-80 space-y-1 max-h-20 overflow-y-auto">
-            {classesData.map((cls, index) => (
-              <div key={index} className="flex justify-between">
-                <span>{cls.class_name}</span>
-                <span>{cls.location}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -182,7 +167,6 @@ const Dashboard: React.FC = () => {
           value={dashboardData.classesThisMonth}
           subtitle="Incredible progress!"
           delay={400}
-          isClassCard={true}
         />
       </div>
 
