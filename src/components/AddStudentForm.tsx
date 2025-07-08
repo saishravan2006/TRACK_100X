@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, BookOpen, FileText, Check, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddStudentFormProps {
   onClose: () => void;
@@ -21,8 +22,30 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
   });
 
   const [errors, setErrors] = useState<any>({});
+  const [classes, setClasses] = useState<string[]>([]);
 
-  const classes = ['Dance Level 1', 'Dance Level 2', 'Math Tutoring', 'Salsa Beginners', 'Advanced Ballet'];
+  const fetchClasses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('class_name')
+        .order('class_name');
+
+      if (error) throw error;
+      
+      // Get unique class names
+      const uniqueClasses = Array.from(new Set(data?.map(c => c.class_name) || []));
+      setClasses(uniqueClasses);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      // Fallback to default classes
+      setClasses(['Dance Level 1', 'Dance Level 2', 'Math Tutoring', 'Salsa Beginners', 'Advanced Ballet']);
+    }
+  };
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
 
   useEffect(() => {
     if (editingStudent) {

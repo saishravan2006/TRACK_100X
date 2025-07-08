@@ -346,7 +346,7 @@ const StudentManagement: React.FC = () => {
           </div>
           <div className="bg-gradient-to-br from-gray-500 to-gray-600 text-white rounded-lg p-3 text-center shadow-sm relative overflow-hidden">
             <div className="text-xl font-bold">0</div>
-            <div className="text-xs text-gray-100">Taking a Break</div>
+            <div className="text-xs text-gray-100">Students Exited</div>
           </div>
         </div>
       </div>

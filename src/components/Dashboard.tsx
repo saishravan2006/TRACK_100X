@@ -2,18 +2,66 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, Calendar, X, Bell } from 'lucide-react';
 import RevenueChart from './RevenueChart';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard: React.FC = () => {
   const [showNotification, setShowNotification] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [dashboardData, setDashboardData] = useState({
+    monthlyRevenue: 0,
+    totalStudents: 0,
+    classesThisMonth: 0,
+    revenueGrowth: 0
+  });
 
-  // Mock data - in real app this would come from your database
-  const dashboardData = {
-    monthlyRevenue: 1500,
-    totalStudents: 25,
-    classesThisMonth: 30,
-    revenueGrowth: 12.5
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch total students
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('id');
+      
+      if (studentsError) throw studentsError;
+
+      // Fetch monthly revenue from payments
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('amount')
+        .gte('payment_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('payment_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      if (paymentsError) throw paymentsError;
+
+      // Fetch classes this month
+      const { data: classesData, error: classesError } = await supabase
+        .from('classes')
+        .select('id')
+        .gte('date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      if (classesError) throw classesError;
+
+      const monthlyRevenue = paymentsData?.reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0) || 0;
+      const totalStudents = studentsData?.length || 0;
+      const classesThisMonth = classesData?.length || 0;
+
+      setDashboardData({
+        monthlyRevenue,
+        totalStudents,
+        classesThisMonth,
+        revenueGrowth: 12.5 // Keep this as mock for now
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   useEffect(() => {
     // Trigger confetti for milestones
@@ -21,7 +69,7 @@ const Dashboard: React.FC = () => {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2000);
     }
-  }, []);
+  }, [dashboardData.classesThisMonth]);
 
   const MetricCard = ({ icon: Icon, title, value, subtitle, delay, showGrowth = false }: any) => (
     <div 
