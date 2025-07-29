@@ -26,9 +26,13 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
 
   const fetchClasses = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('classes')
         .select('class_name')
+        .eq('user_id', user.id)
         .order('class_name');
 
       if (error) throw error;

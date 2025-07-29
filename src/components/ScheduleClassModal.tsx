@@ -27,9 +27,13 @@ const ScheduleClassModal: React.FC<ScheduleClassModalProps> = ({ date, onClose, 
 
   const fetchAvailableClasses = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', user.id)
         .order('class_name');
 
       if (error) throw error;
@@ -57,6 +61,9 @@ const ScheduleClassModal: React.FC<ScheduleClassModalProps> = ({ date, onClose, 
     }
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const selectedClass = availableClasses.find(c => c.id === selectedClassId);
       
       const { error } = await supabase
@@ -69,7 +76,8 @@ const ScheduleClassModal: React.FC<ScheduleClassModalProps> = ({ date, onClose, 
           end_time: endTime || selectedClass.end_time,
           fees: selectedClass.fees,
           notes: selectedClass.notes,
-          class_type: 'single'
+          class_type: 'single',
+          user_id: user.id,
         });
 
       if (error) throw error;

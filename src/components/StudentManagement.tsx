@@ -158,6 +158,9 @@ const StudentManagement: React.FC = () => {
         });
       } else {
         // Add new student
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const studentId = await generateStudentId();
         const { error } = await supabase
           .from('students')
@@ -168,7 +171,8 @@ const StudentManagement: React.FC = () => {
             phone: studentData.phone,
             class_name: studentData.className,
             fees: studentData.fees,
-            notes: studentData.notes
+            notes: studentData.notes,
+            user_id: user.id,
           });
 
         if (error) throw error;

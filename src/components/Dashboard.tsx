@@ -38,10 +38,14 @@ const Dashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch total students
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch total students for current user
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id');
+        .select('id')
+        .eq('user_id', user.id);
       
       if (studentsError) throw studentsError;
 
@@ -52,25 +56,28 @@ const Dashboard: React.FC = () => {
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select('amount')
+        .eq('user_id', user.id)
         .gte('payment_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
         .lt('payment_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
       
       if (paymentsError) throw paymentsError;
 
-      // Fetch classes this month
+      // Fetch classes this month for current user
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select('id')
+        .eq('user_id', user.id)
         .gte('date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
         .lt('date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
       
       if (classesError) throw classesError;
 
-      // Fetch next class
+      // Fetch next class for current user
       const today = new Date().toISOString().split('T')[0];
       const { data: nextClassData, error: nextClassError } = await supabase
         .from('classes')
         .select('start_time, date')
+        .eq('user_id', user.id)
         .gte('date', today)
         .not('start_time', 'is', null)
         .order('date', { ascending: true })

@@ -34,9 +34,13 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({ onClose }) =>
 
   const fetchClasses = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('students')
         .select('class_name')
+        .eq('user_id', user.id)
         .order('class_name');
 
       if (error) throw error;
@@ -112,9 +116,13 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({ onClose }) =>
 
     setDownloading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('students')
         .select('student_id, name, class_name, email, phone, fees, notes')
+        .eq('user_id', user.id)
         .in('class_name', selectedClasses)
         .order('class_name, name');
 

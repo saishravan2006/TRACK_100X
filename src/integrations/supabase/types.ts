@@ -28,6 +28,7 @@ export type Database = {
           repeat_days: string[] | null
           start_time: string | null
           updated_at: string
+          user_id: string
         }
         Insert: {
           class_name: string
@@ -42,6 +43,7 @@ export type Database = {
           repeat_days?: string[] | null
           start_time?: string | null
           updated_at?: string
+          user_id: string
         }
         Update: {
           class_name?: string
@@ -56,6 +58,7 @@ export type Database = {
           repeat_days?: string[] | null
           start_time?: string | null
           updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -69,6 +72,7 @@ export type Database = {
           row_number: number | null
           student_reference: string | null
           upload_id: string | null
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -79,6 +83,7 @@ export type Database = {
           row_number?: number | null
           student_reference?: string | null
           upload_id?: string | null
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -89,6 +94,7 @@ export type Database = {
           row_number?: number | null
           student_reference?: string | null
           upload_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -111,6 +117,7 @@ export type Database = {
           status: string
           total_records: number
           upload_date: string
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -122,6 +129,7 @@ export type Database = {
           status: string
           total_records?: number
           upload_date?: string
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -133,6 +141,7 @@ export type Database = {
           status?: string
           total_records?: number
           upload_date?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -147,6 +156,7 @@ export type Database = {
           student_id: string
           transaction_ref: string | null
           updated_at: string
+          user_id: string
         }
         Insert: {
           amount: number
@@ -158,6 +168,7 @@ export type Database = {
           student_id: string
           transaction_ref?: string | null
           updated_at?: string
+          user_id: string
         }
         Update: {
           amount?: number
@@ -169,6 +180,7 @@ export type Database = {
           student_id?: string
           transaction_ref?: string | null
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -190,6 +202,7 @@ export type Database = {
           total_fees: number
           total_paid: number
           updated_at: string
+          user_id: string
         }
         Insert: {
           current_balance?: number
@@ -200,6 +213,7 @@ export type Database = {
           total_fees?: number
           total_paid?: number
           updated_at?: string
+          user_id: string
         }
         Update: {
           current_balance?: number
@@ -210,6 +224,7 @@ export type Database = {
           total_fees?: number
           total_paid?: number
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -233,6 +248,7 @@ export type Database = {
           phone: string | null
           student_id: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           class_name: string
@@ -245,6 +261,7 @@ export type Database = {
           phone?: string | null
           student_id: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           class_name?: string
@@ -257,6 +274,7 @@ export type Database = {
           phone?: string | null
           student_id?: string
           updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -266,7 +284,9 @@ export type Database = {
     }
     Functions: {
       recalculate_payment_status: {
-        Args: { student_uuid: string }
+        Args:
+          | { student_uuid: string }
+          | { student_uuid: string; user_uuid: string }
         Returns: undefined
       }
       reset_monthly_data: {

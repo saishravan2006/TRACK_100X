@@ -28,9 +28,13 @@ const CalendarView: React.FC = () => {
 
   const fetchClasses = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', user.id)
         .order('date', { ascending: true });
 
       if (error) throw error;
@@ -91,6 +95,9 @@ const CalendarView: React.FC = () => {
 
   const handleSaveClass = async (classData: any) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { error } = await supabase
         .from('classes')
         .insert({
@@ -102,7 +109,8 @@ const CalendarView: React.FC = () => {
           fees: classData.fees,
           notes: classData.notes,
           class_type: classData.classType,
-          repeat_days: classData.repeatDays
+          repeat_days: classData.repeatDays,
+          user_id: user.id,
         });
 
       if (error) throw error;

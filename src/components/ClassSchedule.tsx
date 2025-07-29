@@ -18,9 +18,13 @@ const ClassSchedule: React.FC = () => {
   // Fetch classes from Supabase
   const fetchClasses = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', user.id)
         .order('date', { ascending: true });
 
       if (error) throw error;
@@ -43,6 +47,9 @@ const ClassSchedule: React.FC = () => {
 
   const handleSaveClass = async (classData: any) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { error } = await supabase
         .from('classes')
         .insert({
@@ -54,7 +61,8 @@ const ClassSchedule: React.FC = () => {
           fees: classData.fees,
           notes: classData.notes,
           class_type: classData.classType,
-          repeat_days: classData.repeatDays
+          repeat_days: classData.repeatDays,
+          user_id: user.id,
         });
 
       if (error) throw error;
@@ -75,13 +83,17 @@ const ClassSchedule: React.FC = () => {
     }
   };
 
-  const handleDeleteClass = async (classId: string) => {
-    if (window.confirm('Are you sure you want to delete this class?')) {
-      try {
+  const deleteClass = async (classId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (window.confirm('Are you sure you want to delete this class?')) {
         const { error } = await supabase
           .from('classes')
           .delete()
-          .eq('id', classId);
+          .eq('id', classId)
+          .eq('user_id', user.id);
 
         if (error) throw error;
 
@@ -90,14 +102,14 @@ const ClassSchedule: React.FC = () => {
           title: "Success",
           description: "Class deleted successfully",
         });
-      } catch (error) {
-        console.error('Error deleting class:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete class",
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      console.error('Error deleting class:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete class",
+        variant: "destructive",
+      });
     }
   };
 
@@ -170,7 +182,7 @@ const ClassSchedule: React.FC = () => {
             size="sm" 
             variant="destructive" 
             className="text-xs h-8 px-3"
-            onClick={() => handleDeleteClass(classItem.id)}
+            onClick={() => deleteClass(classItem.id)}
           >
             <Trash2 size={12} className="mr-1" />
             Delete

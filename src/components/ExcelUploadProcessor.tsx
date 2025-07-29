@@ -77,10 +77,14 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
 
       console.log('Passbook Payment History data:', data);
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       // Get all students from database
       const { data: students, error: studentsError } = await supabase
         .from('students')
-        .select('id, student_id, name');
+        .select('id, student_id, name')
+        .eq('user_id', user.id);
 
       if (studentsError) throw studentsError;
 
@@ -153,9 +157,10 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
               student_id: student.id,
               amount: Math.abs(amount), // Use absolute value for received payments
               payment_date: paymentDate,
-              method: 'Excel Upload',
+              method: 'Bank Transfer',
               transaction_ref: upiRef,
-              remarks: `Paytm Statement - ${remarks}`
+              remarks: `Paytm Statement - ${remarks}`,
+              user_id: user.id,
             });
 
           if (insertError) {

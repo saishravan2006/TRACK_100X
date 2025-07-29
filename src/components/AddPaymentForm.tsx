@@ -45,9 +45,13 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
 
   const fetchStudents = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('students')
         .select('id, student_id, name, class_name')
+        .eq('user_id', user.id)
         .order('name');
 
       if (error) throw error;
@@ -79,20 +83,25 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const paymentData = {
         student_id: formData.studentId,
         amount: parseFloat(formData.amount),
         payment_date: formData.paymentDate,
         method: formData.method,
         remarks: formData.remarks || null,
-        transaction_ref: formData.transactionRef || null
+        transaction_ref: formData.transactionRef || null,
+        user_id: user.id,
       };
 
       if (editingPayment) {
         const { error } = await supabase
           .from('payments')
           .update(paymentData)
-          .eq('id', editingPayment.id);
+          .eq('id', editingPayment.id)
+          .eq('user_id', user.id);
 
         if (error) throw error;
         
