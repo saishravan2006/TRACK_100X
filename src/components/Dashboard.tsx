@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Calendar, X, Bell, LogOut } from 'lucide-react';
+import { TrendingUp, Users, Calendar, X, Bell } from 'lucide-react';
 import RevenueChart from './RevenueChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -19,22 +19,7 @@ const Dashboard: React.FC = () => {
   });
   const [nextClassMinutes, setNextClassMinutes] = useState<number | null>(null);
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: "Logged out successfully",
-        description: "See you next time!",
-      });
-      navigate('/auth');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   const fetchDashboardData = async () => {
     try {
@@ -197,13 +182,7 @@ const Dashboard: React.FC = () => {
               Welcome Back, Champion!
             </h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="p-2 hover:bg-red-50 rounded-full transition-colors group"
-            title="Logout"
-          >
-            <LogOut size={20} className="text-red-600 group-hover:text-red-700" />
-          </button>
+
         </div>
         <p className="text-gray-600 text-sm">Your teaching empire is growing strong</p>
       </div>
