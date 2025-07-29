@@ -13,6 +13,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -68,6 +70,21 @@ export default function Auth() {
     setLoading(true);
     setError('');
 
+    // Validate Indian mobile number (10 digits)
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobileRegex.test(mobile)) {
+      setError('Please enter a valid Indian mobile number (10 digits starting with 6-9)');
+      setLoading(false);
+      return;
+    }
+
+    // Validate name
+    if (name.trim().length < 2) {
+      setError('Please enter a valid name (at least 2 characters)');
+      setLoading(false);
+      return;
+    }
+
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -75,7 +92,11 @@ export default function Auth() {
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl
+          emailRedirectTo: redirectUrl,
+          data: {
+            name: name.trim(),
+            mobile: mobile
+          }
         }
       });
 
@@ -97,6 +118,8 @@ export default function Auth() {
       
       setEmail('');
       setPassword('');
+      setName('');
+      setMobile('');
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -169,6 +192,41 @@ export default function Auth() {
             
             <TabsContent value="signup" className="space-y-4">
               <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="signup-name" className="text-sm font-medium">
+                    Full Name
+                  </label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    minLength={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="signup-mobile" className="text-sm font-medium">
+                    Mobile Number
+                  </label>
+                  <Input
+                    id="signup-mobile"
+                    type="tel"
+                    placeholder="Enter 10-digit mobile number"
+                    value={mobile}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setMobile(value);
+                    }}
+                    required
+                    maxLength={10}
+                    pattern="[6-9][0-9]{9}"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Indian mobile number (10 digits, starting with 6-9)
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <label htmlFor="signup-email" className="text-sm font-medium">
                     Email
