@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import introVideo from '../assets/images/intro vid/Untitled design.mp4';
+// Import video with proper path handling
+const introVideo = '/src/assets/images/intro-video.mp4';
 import logoImage from '../assets/images/Untitled design (1).svg';
 
 interface StartupVideoProps {
@@ -104,11 +105,7 @@ const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
           Your browser does not support the video tag.
         </video>
         {!videoLoaded && !videoError && (
-          <div className="absolute inset-0 bg-black flex items-center justify-center">
-            <div className="text-white text-xl">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-              Loading video...
-            </div>
+          <div className="absolute inset-0 bg-black">
           </div>
         )}
         {videoError && (
