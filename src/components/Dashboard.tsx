@@ -1,12 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Calendar, X, Bell } from 'lucide-react';
+import { TrendingUp, Users, Calendar, X, Bell, LogOut } from 'lucide-react';
 import RevenueChart from './RevenueChart';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const [showNotification, setShowNotification] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState({
     monthlyRevenue: 0,
     totalStudents: 0,
@@ -14,6 +18,23 @@ const Dashboard: React.FC = () => {
     revenueGrowth: 0
   });
   const [nextClassMinutes, setNextClassMinutes] = useState<number | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logged out successfully",
+        description: "See you next time!",
+      });
+      navigate('/auth');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -163,10 +184,19 @@ const Dashboard: React.FC = () => {
 
       {/* Header */}
       <div className="bg-gradient-to-r from-white to-blue-50 px-4 py-6 shadow-sm">
-        <div className="flex items-center space-x-3 mb-2">
-          <h1 className="text-2xl font-bold text-black">
-            Welcome Back, Champion!
-          </h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold text-black">
+              Welcome Back, Champion!
+            </h1>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="p-2 hover:bg-red-50 rounded-full transition-colors group"
+            title="Logout"
+          >
+            <LogOut size={20} className="text-red-600 group-hover:text-red-700" />
+          </button>
         </div>
         <p className="text-gray-600 text-sm">Your teaching empire is growing strong</p>
       </div>
