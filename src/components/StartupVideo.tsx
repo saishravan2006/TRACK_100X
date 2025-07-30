@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-// Use video from public directory with absolute path
+// Use video from public directory
 const introVideo = '/intro-video.mp4';
 import logoImage from '../assets/images/Untitled design (1).svg';
 
@@ -92,7 +92,6 @@ const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
           onLoadedData={() => setVideoLoaded(true)}
           onError={() => {
             setVideoError(true);
-            console.error('Video loading error');
             // If video fails to load, skip to transition after 2 seconds
             setTimeout(() => {
               handleVideoEnd();
@@ -100,9 +99,8 @@ const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
           }}
           playsInline
           preload="auto"
-          src={introVideo}
-          autoPlay
         >
+          <source src={introVideo} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
         {!videoLoaded && !videoError && (
