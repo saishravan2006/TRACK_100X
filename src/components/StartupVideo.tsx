@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-// Use video from public directory with relative path
-const introVideo = 'intro-video.mp4';
+// Use video from public directory with absolute path
+const introVideo = '/intro-video.mp4';
 import logoImage from '../assets/images/Untitled design (1).svg';
 
 interface StartupVideoProps {
