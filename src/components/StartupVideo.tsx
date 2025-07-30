@@ -97,7 +97,6 @@ const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
               handleVideoEnd();
             }, 2000);
           }}
-          muted
           playsInline
           preload="auto"
         >
