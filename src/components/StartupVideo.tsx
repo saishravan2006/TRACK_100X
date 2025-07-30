@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-// Use video from public directory
-const introVideo = '/intro-video.mp4';
+import { useState, useEffect, useRef } from 'react';
 import logoImage from '../assets/images/Untitled design (1).svg';
+
+// Use video from public directory
+// Note: Replace with a web-compatible MP4 video file
+const introVideo = '/video.mp4';
 
 interface StartupVideoProps {
   onVideoEnd: () => void;
@@ -9,37 +11,92 @@ interface StartupVideoProps {
 
 const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
   const [showVideo, setShowVideo] = useState(true);
-  const [showTransition, setShowTransition] = useState(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [videoError, setVideoError] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (video) {
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          // Auto-play was prevented or interrupted
-          console.log('Video autoplay prevented:', error);
-          // If autoplay fails, show transition after 3 seconds
-          setTimeout(() => {
-            if (showVideo) {
-              handleVideoEnd();
-            }
-          }, 3000);
-        });
-      }
+    const audio = audioRef.current;
+    
+    // Always try to start audio first
+    if (audio) {
+      audio.play().then(() => {
+        console.log('Audio started playing successfully');
+      }).catch(error => {
+        console.log('Audio autoplay prevented:', error);
+      });
     }
-  }, [videoLoaded]);
+    
+    if (video) {
+      console.log('Video element found, src:', video.src);
+      
+      // Add load event listener
+      const handleLoad = () => {
+        console.log('Video loaded successfully');
+        const playPromise = video.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log('Video started playing successfully');
+          }).catch(error => {
+            console.log('Video autoplay prevented:', error);
+            setTimeout(() => {
+              if (showVideo) {
+                handleVideoEnd();
+              }
+            }, 5000);
+          });
+        }
+      };
+      
+      const handleLoadError = (e) => {
+        console.error('Video load error:', e);
+        console.log('Video file may not be web-compatible. Please ensure the video is encoded for web playback.');
+        setHasError(true);
+        
+        // Still try to play audio even if video fails
+        const audio = audioRef.current;
+        if (audio) {
+          audio.play().then(() => {
+            console.log('Audio started playing (video failed)');
+          }).catch(error => {
+            console.log('Audio autoplay also prevented:', error);
+          });
+        }
+        
+        setTimeout(() => {
+          handleVideoEnd();
+        }, 3000); // Give more time for audio to play
+      };
+      
+      video.addEventListener('loadeddata', handleLoad);
+      video.addEventListener('error', handleLoadError);
+      
+      // Force load
+      video.load();
+      
+      return () => {
+        video.removeEventListener('loadeddata', handleLoad);
+        video.removeEventListener('error', handleLoadError);
+      };
+    }
+  }, [showVideo]);
 
   const handleVideoEnd = () => {
     const video = videoRef.current;
+    const audio = audioRef.current;
+    
     if (video) {
       video.pause();
     }
+    if (audio) {
+      audio.pause();
+    }
+    
     setShowVideo(false);
-    setShowTransition(true);
+    setIsTransitioning(true);
     
     // Show transition screen for 2 seconds before moving to login
     setTimeout(() => {
@@ -47,16 +104,9 @@ const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
     }, 2000);
   };
 
-  const handleVideoClick = () => {
-    // Allow users to skip the video by clicking
-    const video = videoRef.current;
-    if (video) {
-      video.pause();
-    }
-    handleVideoEnd();
-  };
 
-  if (showTransition) {
+
+  if (isTransitioning) {
     return (
       <div className="fixed inset-0 bg-white flex flex-col items-center justify-start pt-16 z-50">
         <div className="transform hover:scale-105 transition-transform duration-300">
@@ -86,39 +136,49 @@ const StartupVideo: React.FC<StartupVideoProps> = ({ onVideoEnd }) => {
       <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
         <video
           ref={videoRef}
-          className="w-full h-full object-cover cursor-pointer"
+          src={introVideo}
+          className="w-full h-full object-cover"
           onEnded={handleVideoEnd}
-          onClick={handleVideoClick}
-          onLoadedData={() => setVideoLoaded(true)}
           onError={() => {
-            setVideoError(true);
-            // If video fails to load, skip to transition after 2 seconds
+            setHasError(true);
+            // If video fails to load, still try to play audio
+            const audio = audioRef.current;
+            if (audio) {
+              audio.play().then(() => {
+                console.log('Audio started playing (video error)');
+              }).catch(error => {
+                console.log('Audio autoplay prevented:', error);
+              });
+            }
+            // Skip to transition after 3 seconds to allow audio to play
             setTimeout(() => {
               handleVideoEnd();
-            }, 2000);
+            }, 3000);
           }}
+          autoPlay
           playsInline
           preload="auto"
         >
-          <source src={introVideo} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
-        {!videoLoaded && !videoError && (
-          <div className="absolute inset-0 bg-black">
-          </div>
-        )}
-        {videoError && (
+        <audio
+          ref={audioRef}
+          src="/video (1).mp3"
+          preload="auto"
+          onError={(e) => {
+            console.log('Audio failed to load:', e);
+          }}
+        />
+        {hasError && (
           <div className="absolute inset-0 bg-black flex items-center justify-center">
             <div className="text-white text-xl text-center">
-              <div className="mb-4">⚠️</div>
-              <div>Video could not be loaded</div>
+              <div className="mb-4">🎵</div>
+              <div>Playing startup audio</div>
               <div className="text-sm mt-2 opacity-70">Continuing to app...</div>
             </div>
           </div>
         )}
-        <div className="absolute bottom-8 right-8 text-white text-sm opacity-70">
-          Click to skip
-        </div>
+
       </div>
     );
   }
