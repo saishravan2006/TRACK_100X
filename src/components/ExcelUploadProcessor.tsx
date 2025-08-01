@@ -157,7 +157,7 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
               student_id: student.id,
               amount: Math.abs(amount), // Use absolute value for received payments
               payment_date: paymentDate,
-              method: 'Bank Transfer',
+              method: 'Excel Upload',
               transaction_ref: upiRef,
               remarks: `Paytm Statement - ${remarks}`,
               user_id: user.id,
