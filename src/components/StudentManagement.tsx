@@ -115,7 +115,10 @@ const StudentManagement: React.FC = () => {
           .delete()
           .eq('id', studentId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Database error details:', error);
+          throw error;
+        }
 
         await fetchStudents();
         toast({
@@ -150,7 +153,12 @@ const StudentManagement: React.FC = () => {
           })
           .eq('id', editingStudent.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Student insertion error details:', error);
+          console.error('User ID:', user.id);
+          console.error('Student data:', { studentId, ...studentData });
+          throw error;
+        }
         
         toast({
           title: "Success",
