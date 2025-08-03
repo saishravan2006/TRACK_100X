@@ -88,9 +88,9 @@ const PaymentManager: React.FC = () => {
   });
 
   const stats = {
-    paid: studentBalances.filter(b => b.status === 'paid').length,
-    pending: studentBalances.filter(b => b.status === 'pending').length,
-    excess: studentBalances.filter(b => b.status === 'excess').length
+    paid: studentBalances.filter(b => b.current_balance <= 0).length,
+    pending: studentBalances.filter(b => b.current_balance > 0).length,
+    excess: studentBalances.filter(b => b.current_balance < 0).length
   };
 
   const handleCardClick = (cardType: string) => {
@@ -100,7 +100,10 @@ const PaymentManager: React.FC = () => {
 
   const getFilteredStudentBalances = () => {
     if (selectedCard === 'all') return studentBalances;
-    return studentBalances.filter(balance => balance.status === selectedCard);
+    if (selectedCard === 'paid') return studentBalances.filter(balance => balance.current_balance <= 0);
+    if (selectedCard === 'pending') return studentBalances.filter(balance => balance.current_balance > 0);
+    if (selectedCard === 'excess') return studentBalances.filter(balance => balance.current_balance < 0);
+    return studentBalances;
   };
 
   const sendWhatsAppReminder = (student: any, amount: number) => {
@@ -191,16 +194,12 @@ const PaymentManager: React.FC = () => {
         let newTotalPaid = 0;
         const totalFees = balance.total_fees;
 
-        if (balance.status === 'paid') {
-          // Step 4: For paid status (current balance equals zero)
+        if (balance.current_balance <= 0) {
+          // For paid status (current balance is zero or negative)
           newCurrentBalance = totalFees;
           newTotalPaid = 0;
-        } else if (balance.status === 'pending') {
-          // Step 5: For pending status (current balance is positive)
-          newCurrentBalance = balance.current_balance + totalFees;
-          newTotalPaid = 0;
-        } else if (balance.status === 'excess') {
-          // Step 6: For excess status (current balance is negative)
+        } else {
+          // For pending status (current balance is positive)
           newCurrentBalance = balance.current_balance + totalFees;
           newTotalPaid = 0;
         }

@@ -31,21 +31,33 @@ const StudentManagement: React.FC = () => {
           student_balances (
             current_balance,
             total_paid,
-            last_payment_date,
-            status
+            last_payment_date
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const studentsWithStatus = data.map(student => ({
-        ...student,
-        status: 'Active',
-        paymentStatus: student.student_balances?.[0]?.status || 'pending',
-        lastPayment: student.student_balances?.[0]?.last_payment_date || new Date().toISOString().split('T')[0],
-        amount: Math.abs(student.student_balances?.[0]?.current_balance || 0)
-      }));
+      const studentsWithStatus = data.map(student => {
+        const balance = student.student_balances?.[0];
+        const currentBalance = balance?.current_balance || 0;
+        
+        // Determine payment status based on balance
+        let paymentStatus = 'pending';
+        if (currentBalance <= 0) {
+          paymentStatus = 'paid';
+        } else if (currentBalance < 0) {
+          paymentStatus = 'excess';
+        }
+        
+        return {
+          ...student,
+          status: 'Active',
+          paymentStatus,
+          lastPayment: balance?.last_payment_date || new Date().toISOString().split('T')[0],
+          amount: Math.abs(currentBalance)
+        };
+      });
 
       setStudents(studentsWithStatus);
     } catch (error) {
