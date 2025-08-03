@@ -161,8 +161,8 @@ const StudentManagement: React.FC = () => {
 
         if (error) {
           console.error('Student insertion error details:', error);
-          console.error('User ID:', user.id);
-          console.error('Student data:', { studentId, ...studentData });
+          console.error('User ID:', data?.user?.id);
+          console.error('Student data:', studentData);
           throw error;
         }
         
