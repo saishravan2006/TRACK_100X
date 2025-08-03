@@ -111,7 +111,7 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
         try {
           const remarks = row['Remarks'] || row['remarks'] || '';
           const upiRef = row['UPI Ref No.'] || row['UPI Ref'] || row['upi_ref'] || row['transaction_ref'] || '';
-          const amount = parseFloat(row['Amount'] || row['amount'] || '0');
+          const rawAmount = String(row['Amount'] || row['amount'] || '0');
           const rawDate = row['Date'] || row['Payment Date'] || row['payment_date'];
           
           // Convert date to proper format
@@ -124,7 +124,24 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
             continue;
           }
 
-          // Check 2: Remarks contains valid student ID? (STUXXX format)
+          // Check 2: Filter out negative transactions (contains "-")
+          if (rawAmount.includes('-')) {
+            skipped++;
+            console.log(`Skipping negative transaction: ${rawAmount}`);
+            continue;
+          }
+
+          // Check 3: Parse amount properly (handle commas and preserve decimals)
+          const cleanAmount = rawAmount.replace(/[+,\s]/g, ''); // Remove +, commas, and spaces
+          const amount = parseFloat(cleanAmount);
+          
+          if (isNaN(amount) || amount <= 0) {
+            skipped++;
+            console.log(`Skipping transaction - Invalid amount: ${rawAmount}`);
+            continue;
+          }
+
+          // Check 4: Remarks contains valid student ID? (STUXXX format)
           const studentIdMatch = remarks.match(/STU\d{3}/i);
           if (!studentIdMatch) {
             flaggedForReview++;
@@ -157,7 +174,7 @@ const ExcelUploadProcessor: React.FC<ExcelUploadProcessorProps> = ({ onClose, on
               student_id: student.id,
               amount: Math.abs(amount), // Use absolute value for received payments
               payment_date: paymentDate,
-              method: 'Bank Transfer',
+              method: 'Excel Upload',
               transaction_ref: upiRef,
               remarks: `Paytm Statement - ${remarks}`,
               user_id: user.id,

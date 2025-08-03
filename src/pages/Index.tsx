@@ -49,16 +49,18 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 font-[Roboto,system-ui,sans-serif] max-w-[375px] mx-auto relative">
-      {/* Logout Button */}
-      <div className="absolute top-4 right-4 z-10">
-        <button
-          onClick={handleLogout}
-          className="p-2 bg-white shadow-lg rounded-full hover:bg-red-50 transition-colors group"
-          title="Logout"
-        >
-          <LogOut size={20} className="text-red-600 group-hover:text-red-700" />
-        </button>
-      </div>
+      {/* Logout Button - Only show on dashboard */}
+      {activeTab === 'dashboard' && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={handleLogout}
+            className="p-2 bg-white shadow-lg rounded-full hover:bg-red-50 transition-colors group"
+            title="Logout"
+          >
+            <LogOut size={20} className="text-red-600 group-hover:text-red-700" />
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="relative">

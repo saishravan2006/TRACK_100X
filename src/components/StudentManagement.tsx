@@ -82,24 +82,30 @@ const StudentManagement: React.FC = () => {
   };
 
   const generateStudentId = async () => {
-    const { data, error } = await supabase
-      .from('students')
-      .select('student_id')
-      .order('student_id', { ascending: false })
-      .limit(1);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-    if (error) {
+      const { data, error } = await supabase
+        .from('students')
+        .select('student_id')
+        .eq('user_id', user.id)
+        .order('student_id', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data.length === 0) {
+        return 'STU001';
+      }
+
+      const lastId = data[0].student_id;
+      const lastNumber = parseInt(lastId.replace('STU', ''));
+      return `STU${String(lastNumber + 1).padStart(3, '0')}`;
+    } catch (error) {
       console.error('Error generating student ID:', error);
       return 'STU001';
     }
-
-    if (data.length === 0) {
-      return 'STU001';
-    }
-
-    const lastId = data[0].student_id;
-    const lastNumber = parseInt(lastId.replace('STU', ''));
-    return `STU${String(lastNumber + 1).padStart(3, '0')}`;
   };
 
   const handleEditStudent = (student: any) => {
