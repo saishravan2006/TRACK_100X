@@ -181,36 +181,66 @@ const PaymentManager: React.FC = () => {
 
   const handleMonthlyReset = async () => {
     try {
-      // Step 3: Query student balance table to get current data
+      setLoading(true);
+      
+      // Step 1: Get all current student balances with user filter
       const { data: studentBalances, error: fetchError } = await supabase
         .from('student_balances')
-        .select('*');
+        .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (fetchError) throw fetchError;
 
-      // Step 4-6: Process each student balance based on status
+      // Step 2: Archive current month's payments before processing
+      const { data: currentPayments } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (currentPayments && currentPayments.length > 0) {
+        await supabase
+          .from('payments_archive')
+          .insert(currentPayments);
+      }
+
+      // Step 3: Process each student according to the flowchart logic
       for (const balance of studentBalances) {
+        const currentBalance = balance.current_balance;
+        const monthlyFee = balance.total_fees;
         let newCurrentBalance = 0;
         let newTotalPaid = 0;
-        const totalFees = balance.total_fees;
 
-        if (balance.current_balance <= 0) {
-          // For paid status (current balance is zero or negative)
-          newCurrentBalance = totalFees;
+        // Determine current status and apply flowchart logic
+        if (currentBalance === 0) {
+          // PAID: Set to PENDING, Balance = full fee
+          newCurrentBalance = monthlyFee;
           newTotalPaid = 0;
-        } else {
-          // For pending status (current balance is positive)
-          newCurrentBalance = balance.current_balance + totalFees;
+        } else if (currentBalance > 0) {
+          // PENDING: Add new fee, Status remains PENDING
+          newCurrentBalance = currentBalance + monthlyFee;
           newTotalPaid = 0;
+        } else if (currentBalance < 0) {
+          // EXCESS: Apply excess to new fee
+          const excessAmount = Math.abs(currentBalance);
+          
+          if (excessAmount >= monthlyFee) {
+            // Excess >= fee: Mark PAID, Carry forward remainder
+            newCurrentBalance = -(excessAmount - monthlyFee);
+            newTotalPaid = monthlyFee;
+          } else {
+            // Excess < fee: Mark PENDING, Balance = fee - excess
+            newCurrentBalance = monthlyFee - excessAmount;
+            newTotalPaid = 0;
+          }
         }
 
-        // Step 7: Save updated values to student balance table
+        // Step 4: Update the student balance
         const { error: updateError } = await supabase
           .from('student_balances')
           .update({
             current_balance: newCurrentBalance,
             total_paid: newTotalPaid,
-            last_payment_date: null,
+            last_payment_date: newTotalPaid > 0 ? new Date().toISOString().split('T')[0] : null,
             updated_at: new Date().toISOString()
           })
           .eq('id', balance.id);
@@ -218,26 +248,21 @@ const PaymentManager: React.FC = () => {
         if (updateError) throw updateError;
       }
 
-      // Delete current month's payments
-      const currentDate = new Date();
-      const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
+      // Step 5: Delete all payments for current user
       const { error: deleteError } = await supabase
         .from('payments')
         .delete()
-        .gte('payment_date', firstDayOfMonth.toISOString().split('T')[0])
-        .lte('payment_date', lastDayOfMonth.toISOString().split('T')[0]);
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (deleteError) throw deleteError;
 
       await fetchPayments();
       setShowResetConfirm(false);
       
-      // Step 8: Display success message
+      // Step 6: Display success message
       toast({
-        title: "Reset Complete",
-        description: "Monthly payments have been reset successfully. Student balances updated based on their payment status.",
+        title: "Monthly Reset Complete",
+        description: "Student balances have been reset according to their payment status as per the flowchart logic.",
       });
     } catch (error) {
       console.error('Error resetting monthly data:', error);
@@ -246,6 +271,8 @@ const PaymentManager: React.FC = () => {
         description: "Failed to reset monthly data",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
