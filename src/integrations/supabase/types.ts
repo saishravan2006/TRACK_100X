@@ -325,7 +325,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      recalculate_payment_status: {
+        Args: { student_uuid: string; user_uuid: string }
+        Returns: undefined
+      }
+      reset_monthly_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
