@@ -160,9 +160,7 @@ const StudentManagement: React.FC = () => {
           .eq('id', editingStudent.id);
 
         if (error) {
-          console.error('Student insertion error details:', error);
-          console.error('User ID:', data?.user?.id);
-          console.error('Student data:', studentData);
+          console.error('Student update error details:', error);
           throw error;
         }
         
