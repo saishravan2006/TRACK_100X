@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, User, DollarSign, Calendar, CreditCard, FileText, Check } from 'lucide-react';
+import { X, User, IndianRupee, Calendar, CreditCard, FileText, Check, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,8 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
   });
 
   const [students, setStudents] = useState([]);
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [errors, setErrors] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -56,9 +58,19 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
 
       if (error) throw error;
       setStudents(data || []);
+      setFilteredStudents(data || []);
     } catch (error) {
       console.error('Error fetching students:', error);
     }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    const filtered = students.filter((student: any) =>
+      student.name.toLowerCase().includes(value.toLowerCase()) ||
+      student.student_id.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredStudents(filtered);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -143,7 +155,7 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-[#0052cc] to-blue-600 rounded-full flex items-center justify-center">
-              <DollarSign size={16} className="text-white" />
+              <IndianRupee size={16} className="text-white" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900">
               {editingPayment ? 'Edit Payment' : 'Add Payment'}
@@ -160,19 +172,32 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
         {/* Form */}
         <div className="p-4 max-h-[60vh] overflow-y-auto">
           <div className="space-y-4">
-            {/* Student Selection */}
+            {/* Student Selection with Search */}
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
                 <User size={16} className="text-[#0052cc]" />
                 <span>Student *</span>
               </label>
+              
+              {/* Search Input */}
+              <div className="relative mb-2">
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search by name or student ID..."
+                  className="pl-10 h-10 border-blue-200 focus:border-[#0052cc]"
+                />
+              </div>
+              
+              {/* Student Selection */}
               <select
                 value={formData.studentId}
                 onChange={(e) => handleInputChange('studentId', e.target.value)}
                 className={`w-full h-12 px-3 border rounded-md bg-white ${errors.studentId ? 'border-red-500' : 'border-blue-200'} focus:border-[#0052cc] focus:outline-none`}
               >
                 <option value="">Select a student</option>
-                {students.map((student: any) => (
+                {filteredStudents.map((student: any) => (
                   <option key={student.id} value={student.id}>
                     {student.student_id} - {student.name} ({student.class_name})
                   </option>
@@ -184,7 +209,7 @@ const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ onClose, onSave, editin
             {/* Amount Field */}
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                <DollarSign size={16} className="text-[#0052cc]" />
+                <IndianRupee size={16} className="text-[#0052cc]" />
                 <span>Amount *</span>
               </label>
               <Input

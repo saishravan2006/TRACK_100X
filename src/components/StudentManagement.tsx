@@ -16,6 +16,7 @@ const StudentManagement: React.FC = () => {
   const [showClassSelection, setShowClassSelection] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [students, setStudents] = useState([]);
+  const [exitedStudents, setExitedStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -24,6 +25,9 @@ const StudentManagement: React.FC = () => {
   // Fetch students from Supabase
   const fetchStudents = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('students')
         .select(`
@@ -34,11 +38,15 @@ const StudentManagement: React.FC = () => {
             last_payment_date
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const studentsWithStatus = data.map(student => {
+      const activeStudents = [];
+      const exitedStudents = [];
+
+      data.forEach(student => {
         const balance = student.student_balances?.[0];
         const currentBalance = balance?.current_balance || 0;
         
@@ -50,16 +58,22 @@ const StudentManagement: React.FC = () => {
           paymentStatus = 'excess';
         }
         
-        return {
+        const studentWithStatus = {
           ...student,
-          status: 'Active',
           paymentStatus,
           lastPayment: balance?.last_payment_date || new Date().toISOString().split('T')[0],
           amount: Math.abs(currentBalance)
         };
+
+        if (student.status === 'active') {
+          activeStudents.push(studentWithStatus);
+        } else {
+          exitedStudents.push(studentWithStatus);
+        }
       });
 
-      setStudents(studentsWithStatus);
+      setStudents(activeStudents);
+      setExitedStudents(exitedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast({
@@ -77,6 +91,14 @@ const StudentManagement: React.FC = () => {
   }, []);
 
   const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.class_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.student_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterClass === 'all' || student.class_name === filterClass;
+    return matchesSearch && matchesFilter;
+  });
+
+  const filteredExitedStudents = exitedStudents.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.class_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.student_id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -125,13 +147,17 @@ const StudentManagement: React.FC = () => {
     setShowAddForm(true);
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
-    if (window.confirm('Are you sure you want to delete this student?')) {
+  const handleExitStudent = async (studentId: string) => {
+    if (window.confirm('Are you sure you want to move this student to exited section?')) {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const { error } = await supabase
           .from('students')
-          .delete()
-          .eq('id', studentId);
+          .update({ status: 'exited' })
+          .eq('id', studentId)
+          .eq('user_id', user.id);
 
         if (error) {
           console.error('Database error details:', error);
@@ -141,7 +167,40 @@ const StudentManagement: React.FC = () => {
         await fetchStudents();
         toast({
           title: "Success",
-          description: "Student deleted successfully",
+          description: "Student moved to exited section",
+        });
+      } catch (error) {
+        console.error('Error moving student:', error);
+        toast({
+          title: "Error",
+          description: "Failed to move student",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleDeleteExitedStudent = async (studentId: string) => {
+    if (window.confirm('Are you sure you want to permanently delete this student?')) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { error } = await supabase
+          .from('students')
+          .delete()
+          .eq('id', studentId)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Database error details:', error);
+          throw error;
+        }
+
+        await fetchStudents();
+        toast({
+          title: "Success",
+          description: "Student permanently deleted",
         });
       } catch (error) {
         console.error('Error deleting student:', error);
@@ -220,7 +279,7 @@ const StudentManagement: React.FC = () => {
     }
   };
 
-  const StudentCard = ({ student, index }: any) => (
+  const StudentCard = ({ student, index, isExited = false }: any) => (
     <div 
       className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 animate-fade-in hover:shadow-md transition-all duration-200 mx-3"
       style={{ animationDelay: `${index * 100}ms` }}
@@ -230,6 +289,9 @@ const StudentManagement: React.FC = () => {
           <div className="flex items-center space-x-2 mb-1">
             <h3 className="font-semibold text-gray-900 text-base truncate">{student.name}</h3>
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{student.student_id}</span>
+            {isExited && (
+              <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">Exited</span>
+            )}
           </div>
           <p className="text-sm text-gray-600 mb-1 truncate">{student.class_name}</p>
           <div className="flex items-center space-x-1 text-xs text-green-600 font-medium mb-1">
@@ -246,9 +308,11 @@ const StudentManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 capitalize ${getStatusColor(student.paymentStatus)}`}>
-          {student.paymentStatus}
-        </span>
+        {!isExited && (
+          <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 capitalize ${getStatusColor(student.paymentStatus)}`}>
+            {student.paymentStatus}
+          </span>
+        )}
       </div>
       
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
@@ -257,24 +321,38 @@ const StudentManagement: React.FC = () => {
           <span className="text-gray-500 text-xs">• {student.lastPayment}</span>
         </div>
         <div className="flex space-x-2">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="text-xs h-8 px-3"
-            onClick={() => handleEditStudent(student)}
-          >
-            <Edit size={12} className="mr-1" />
-            Edit
-          </Button>
-          <Button 
-            size="sm" 
-            variant="destructive" 
-            className="text-xs h-8 px-3"
-            onClick={() => handleDeleteStudent(student.id)}
-          >
-            <Trash2 size={12} className="mr-1" />
-            Delete
-          </Button>
+          {!isExited ? (
+            <>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-xs h-8 px-3"
+                onClick={() => handleEditStudent(student)}
+              >
+                <Edit size={12} className="mr-1" />
+                Edit
+              </Button>
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                className="text-xs h-8 px-3"
+                onClick={() => handleExitStudent(student.id)}
+              >
+                <Trash2 size={12} className="mr-1" />
+                Exit
+              </Button>
+            </>
+          ) : (
+            <Button 
+              size="sm" 
+              variant="destructive" 
+              className="text-xs h-8 px-3"
+              onClick={() => handleDeleteExitedStudent(student.id)}
+            >
+              <Trash2 size={12} className="mr-1" />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -369,11 +447,11 @@ const StudentManagement: React.FC = () => {
       <div className="px-4 py-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-[#0052cc] to-blue-600 text-white rounded-lg p-3 text-center shadow-sm relative overflow-hidden">
-            <div className="text-xl font-bold">{students.filter(s => s.status === 'Active').length}</div>
+            <div className="text-xl font-bold">{students.length}</div>
             <div className="text-xs text-blue-100">Active Champions</div>
           </div>
           <div className="bg-gradient-to-br from-gray-500 to-gray-600 text-white rounded-lg p-3 text-center shadow-sm relative overflow-hidden">
-            <div className="text-xl font-bold">0</div>
+            <div className="text-xl font-bold">{exitedStudents.length}</div>
             <div className="text-xs text-gray-100">Students Exited</div>
           </div>
         </div>
@@ -404,9 +482,25 @@ const StudentManagement: React.FC = () => {
         {filteredStudents.length === 0 && (
           <div className="text-center py-12 px-4">
             <Users size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-500 mb-2">No students found</h3>
+            <h3 className="text-lg font-medium text-gray-500 mb-2">No active students found</h3>
             <p className="text-gray-400 mb-4">Try adjusting your search or filter</p>
           </div>
+        )}
+
+        {/* Students Exited Section */}
+        {exitedStudents.length > 0 && (
+          <>
+            <div className="flex items-center justify-between px-3 mb-4 mt-8">
+              <div className="flex items-center space-x-2">
+                <Users size={18} className="text-gray-500" />
+                <h2 className="font-semibold text-gray-700">Students Exited</h2>
+              </div>
+            </div>
+            
+            {filteredExitedStudents.map((student, index) => (
+              <StudentCard key={student.id} student={student} index={index} isExited={true} />
+            ))}
+          </>
         )}
       </div>
 

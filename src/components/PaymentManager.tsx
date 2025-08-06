@@ -248,13 +248,22 @@ const PaymentManager: React.FC = () => {
         if (updateError) throw updateError;
       }
 
-      // Step 5: Delete all payments for current user
+      // Step 5: Delete all payments for current user and exited students
       const { error: deleteError } = await supabase
         .from('payments')
         .delete()
         .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (deleteError) throw deleteError;
+
+      // Step 6: Delete exited students permanently
+      const { error: deleteExitedError } = await supabase
+        .from('students')
+        .delete()
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('status', 'exited');
+
+      if (deleteExitedError) throw deleteExitedError;
 
       await fetchPayments();
       setShowResetConfirm(false);

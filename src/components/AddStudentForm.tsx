@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, BookOpen, FileText, Check, DollarSign } from 'lucide-react';
+import { X, User, Mail, Phone, BookOpen, FileText, Check, IndianRupee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -187,7 +187,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
             {/* Fees Field */}
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                <DollarSign size={16} className="text-[#0052cc]" />
+                <IndianRupee size={16} className="text-[#0052cc]" />
                 <span>Monthly Fees *</span>
               </label>
               <Input

@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Clock, MapPin, Users, BookOpen, Plus } from 'lucide-react';
+import { X, Clock, MapPin, Users, BookOpen, Plus, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import EditClassModal from './EditClassModal';
 
 interface ClassDetailsModalProps {
   date: string;
@@ -13,6 +14,8 @@ interface ClassDetailsModalProps {
 const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose, onScheduleNew }) => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingClass, setEditingClass] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     fetchClassesForDate();
@@ -20,17 +23,34 @@ const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose, on
 
   const fetchClassesForDate = async () => {
     try {
-      const selectedDate = new Date(date);
-      const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
       
-      // Fetch classes for the specific date or recurring classes for that day
+      // Query for both specific date classes and recurring classes that match the day
       const { data, error } = await supabase
         .from('classes')
         .select('*')
-        .or(`date.eq.${date},repeat_days.cs.{${dayOfWeek}}`);
+        .eq('user_id', user.id);
 
       if (error) throw error;
-      setClasses(data || []);
+      
+      // Filter classes that match the date or have the day in repeat_days
+      const filteredClasses = (data || []).filter(classItem => {
+        return classItem.date === date || 
+               (classItem.repeat_days && classItem.repeat_days.includes(dayOfWeek));
+      });
+      
+      // Sort by start time
+      filteredClasses.sort((a, b) => {
+        if (!a.start_time && !b.start_time) return 0;
+        if (!a.start_time) return 1;
+        if (!b.start_time) return -1;
+        return a.start_time.localeCompare(b.start_time);
+      });
+      
+      setClasses(filteredClasses);
     } catch (error) {
       console.error('Error fetching classes:', error);
     } finally {
@@ -45,6 +65,17 @@ const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose, on
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const handleEditClass = (classItem: any) => {
+    setEditingClass(classItem);
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = () => {
+    fetchClassesForDate();
+    setShowEditModal(false);
+    setEditingClass(null);
   };
 
   return (
@@ -129,6 +160,19 @@ const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose, on
                         <p className="text-sm text-gray-600">{classItem.notes}</p>
                       </div>
                     )}
+                    
+                    {/* Edit Button */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <Button
+                        onClick={() => handleEditClass(classItem)}
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-8 text-xs border-blue-200 hover:bg-blue-50"
+                      >
+                        <Edit size={12} className="mr-1" />
+                        Edit Class
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -155,6 +199,18 @@ const ClassDetailsModal: React.FC<ClassDetailsModalProps> = ({ date, onClose, on
           </Button>
         </div>
       </div>
+
+      {/* Edit Class Modal */}
+      {showEditModal && editingClass && (
+        <EditClassModal
+          classData={editingClass}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingClass(null);
+          }}
+          onSave={handleEditSave}
+        />
+      )}
     </div>
   );
 };
