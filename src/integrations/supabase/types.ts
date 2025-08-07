@@ -237,6 +237,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          mobile: string | null
+          name: string
+          service_type: string | null
+          student_limit: number | null
+          subscription_tier: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mobile?: string | null
+          name: string
+          service_type?: string | null
+          student_limit?: number | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mobile?: string | null
+          name?: string
+          service_type?: string | null
+          student_limit?: number | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       student_balances: {
         Row: {
           current_balance: number
