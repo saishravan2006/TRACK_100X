@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Phone, Eye, EyeOff, KeyRound } from 'lucide-react';
 import logoImage from '../assets/images/Untitled design (1).svg';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,15 +18,33 @@ export default function Auth() {
   const [mobile, setMobile] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const isReset = searchParams.get('reset') === 'true';
 
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/');
+        // Check if user needs onboarding
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('service_type')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (profile && !profile.service_type) {
+          navigate('/onboarding');
+        } else {
+          navigate('/');
+        }
       }
     };
     checkUser();
@@ -103,8 +121,8 @@ export default function Auth() {
       });
 
       if (error) {
-        if (error.message.includes('User already registered')) {
-          setError('An account with this email already exists. Please sign in instead.');
+        if (error.message.includes('User already registered') || error.message.includes('already been registered')) {
+          setError('This account already exists! Please sign in instead.');
         } else if (error.message.includes('Password should be')) {
           setError('Password should be at least 6 characters long.');
         } else {
@@ -118,10 +136,79 @@ export default function Auth() {
         description: "Please check your email for a confirmation link.",
       });
       
+      // Redirect to onboarding after successful signup
+      navigate('/onboarding');
+      
       setEmail('');
       setPassword('');
       setName('');
       setMobile('');
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/functions/v1/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error);
+        return;
+      }
+
+      toast({
+        title: "Reset link sent!",
+        description: "Check your email for the password reset link.",
+      });
+      setShowForgotPassword(false);
+      setResetEmail('');
+    } catch (err) {
+      setError('Failed to send reset email. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      toast({
+        title: "Password updated!",
+        description: "Your password has been successfully updated.",
+      });
+      navigate('/');
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -156,7 +243,130 @@ export default function Auth() {
           </div>
         </CardHeader>
         <CardContent className="px-8 pb-8">
-          <Tabs defaultValue="signin" className="w-full">
+          {isReset ? (
+            // Password Reset Form
+            <form onSubmit={handlePasswordReset} className="space-y-5">
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800">Reset Your Password</h2>
+                <p className="text-gray-600 text-sm mt-2">Enter your new password below</p>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="new-password" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-blue-500" />
+                  New Password
+                </label>
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pl-10 pr-10 h-12 border-2 border-gray-200 focus:border-blue-500 rounded-xl transition-colors duration-200"
+                  />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="confirm-password" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-blue-500" />
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pl-10 h-12 border-2 border-gray-200 focus:border-blue-500 rounded-xl transition-colors duration-200"
+                  />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-black hover:bg-gray-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200" 
+                disabled={loading}
+              >
+                {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                {loading ? 'Updating Password...' : 'Update Password'}
+              </Button>
+            </form>
+          ) : showForgotPassword ? (
+            // Forgot Password Form
+            <form onSubmit={handleForgotPassword} className="space-y-5">
+              <div className="text-center mb-6">
+                <KeyRound className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-gray-800">Reset Your Password</h2>
+                <p className="text-gray-600 text-sm mt-2">Enter your email address and we'll send you a reset link</p>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="reset-email" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-blue-500" />
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    className="pl-10 h-12 border-2 border-gray-200 focus:border-blue-500 rounded-xl transition-colors duration-200"
+                  />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-black hover:bg-gray-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200" 
+                disabled={resetLoading}
+              >
+                {resetLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                {resetLoading ? 'Sending Reset Link...' : 'Send Reset Link'}
+              </Button>
+
+              <Button 
+                type="button"
+                variant="outline"
+                className="w-full h-12 border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all duration-200"
+                onClick={() => setShowForgotPassword(false)}
+              >
+                Back to Sign In
+              </Button>
+            </form>
+          ) : (
+            <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1 rounded-xl">
               <TabsTrigger value="signin" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200">
                 Sign In
@@ -223,6 +433,15 @@ export default function Auth() {
                 >
                   {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                   {loading ? 'Signing In...' : 'Sign In'}
+                </Button>
+                
+                <Button
+                  type="button"
+                  variant="link"
+                  className="w-full text-blue-600 hover:text-blue-700 text-sm"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Forgot your password?
                 </Button>
               </form>
             </TabsContent>
@@ -334,6 +553,7 @@ export default function Auth() {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>

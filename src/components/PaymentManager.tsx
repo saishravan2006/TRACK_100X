@@ -87,6 +87,11 @@ const PaymentManager: React.FC = () => {
     return matchesSearch && matchesFilter;
   });
 
+  const filteredStudentsForSearch = students.filter(student => 
+    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.student_id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const stats = {
     paid: studentBalances.filter(b => b.current_balance <= 0).length,
     pending: studentBalances.filter(b => b.current_balance > 0).length,

@@ -49,8 +49,13 @@ const Calendar: React.FC = () => {
   };
 
   const handleDateClick = (day: number) => {
+    // Create date in local timezone to avoid timezone offset issues
     const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    const dateString = clickedDate.toISOString().split('T')[0];
+    // Format as YYYY-MM-DD in local timezone
+    const year = clickedDate.getFullYear();
+    const month = String(clickedDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const dateString = `${year}-${month}-${dayStr}`;
     setSelectedDate(dateString);
   };
 

@@ -4,6 +4,7 @@ import { X, User, Mail, Phone, BookOpen, FileText, Check, IndianRupee } from 'lu
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import SubscriptionModal from './SubscriptionModal';
 
 interface AddStudentFormProps {
   onClose: () => void;
@@ -23,6 +24,7 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
 
   const [errors, setErrors] = useState<any>({});
   const [classes, setClasses] = useState<string[]>([]);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const fetchClasses = async () => {
     try {
@@ -82,14 +84,41 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (validateForm()) {
-      onSave({
-        ...formData,
-        fees: parseFloat(formData.fees)
-      });
-      if (navigator.vibrate) {
-        navigator.vibrate(100);
+      // Check student limit before saving
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && !editingStudent) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('student_limit')
+            .eq('user_id', user.id)
+            .single();
+
+          const studentLimit = profile?.student_limit || 10;
+          const { count } = await supabase
+            .from('students')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('status', 'active');
+
+          if ((count || 0) >= studentLimit) {
+            setShowSubscriptionModal(true);
+            return;
+          }
+        }
+
+        onSave({
+          ...formData,
+          fees: parseFloat(formData.fees)
+        });
+        
+        if (navigator.vibrate) {
+          navigator.vibrate(100);
+        }
+      } catch (error) {
+        console.error('Error checking student limit:', error);
       }
     }
   };
@@ -238,6 +267,12 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({ onClose, onSave, editin
           </Button>
         </div>
       </div>
+      
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        open={showSubscriptionModal} 
+        onOpenChange={setShowSubscriptionModal} 
+      />
     </div>
   );
 };
